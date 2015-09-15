@@ -171,8 +171,6 @@ void logger(int type, char *s1, char *s2, int socket_fd)
 	if(type == ERROR || type == NOTFOUND || type == FORBIDDEN) exit(3);
 }
 
-
-1234test
 struct HTTPResponse {
 	char* statusCode;
 	int http_status,keep_alive;
