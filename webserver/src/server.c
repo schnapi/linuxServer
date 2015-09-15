@@ -205,7 +205,6 @@ int writeResponse(int sock, struct HTTPRequest httpRes){
 	}
 	printf("%d\n",i);
 	printf("\n%s",header);
-	printf("test");
 	write(sock , header , i);
 	write(sock , content , strlen(content));
 	
