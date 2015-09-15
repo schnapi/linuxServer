@@ -189,7 +189,7 @@ struct HTTPRequest {
 	char host[10000];
 };
 
-int writeResponse(int sock,struct HTTPRequest httpRes){
+int writeResponse(int sock, struct HTTPRequest httpRes){
 	char *statusLine=httpRes.statusCode;
 	char *head="Cache-Control: no-cache, private\nContent-Length: 11\nDate: Mon, 24 Nov 2014 10:21:21 GMT\n\n\0"; //two new lines
 	char *header = (char *) malloc(strlen(statusLine)+strlen(head));
