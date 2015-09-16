@@ -1,9 +1,10 @@
-CC = gcc #CC rezervirana beseda za prevajalnike
-CFLAGS = -pthread -o # rezervirana beseda za te znake
-DAT = src/server.c src/logger.c #ime datoteke
-TARGET = server #ime datoteke
+CC = gcc #CC compiler
+CFLAGS = -pthread -o # arguments for the compiler
+DAT = src/server.c src/logger.c #name of the files we want to compile
+TARGET = server #output executable
 
 all: $(DAT)
-	${CC} $(CFLAGS) $(TARGET) $(DAT) #prevedemo datoteko in jo shranimo v iskanje
+	${CC} $(CFLAGS) $(TARGET) $(DAT)
 clean: 
-	rm -rf $(TARGET) #izbrise se ko klicemo clean
+	rm -rf $(TARGET)
+	

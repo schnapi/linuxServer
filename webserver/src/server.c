@@ -7,6 +7,9 @@
 #include<pthread.h> //for threading , link with lpthread
  
 #include "logger.h"
+#define VERSION "1.0"
+#define SERVERNAME "RoSa"
+#define BUFFERSIZE 4096
 
 void *connection_handler(void *);
  
@@ -80,87 +83,68 @@ int main(int argc , char *argv[])
  * This will handle connection for each client
  * */
 
-char *getFile(char *sendFile){
-	/*unsigned char send_buffer[MAX_LEN];
-
-	while( !feof(sendFile) )
-	{
-		int numread = fread(send_buffer, sizeof(unsigned char), MAX_LEN, sendFile);
-		if( numread < 1 ) break; // EOF or error
-
-		unsigned char *send_buffer_ptr = send_buffer;
-		do
-		{
-		    int numsent = send(new_fd, send_buffer_ptr, numread, 0);
-		    if( numsent < 1 ) // 0 if disconnected, otherwise error
-		    {
-		        if( numsent < 0 )
-		        {
-		            if( WSAGetLastError() == WSAEWOULDBLOCK )
-		            {
-		                fd_set wfd;
-		                FD_ZERO(&wfd);
-		                FD_SET(new_fd, &wfd);
-
-		                timeval tm;
-		                tm.tv_sec = 10;
-		                tm.tv_usec = 0;
-
-		                if( select(0, NULL, &wfd, NULL, &tm) > 0 )
-		                    continue;
-		            }
-		        }
-
-		        break; // timeout or error
-		    }
-
-		    send_buffer_ptr += numsent;
-		    numread -= numsent;
-		}
-		while( numread > 0 );
-	} */
-	return NULL;
-}
-
-
+struct {
+	char *ext;
+	char *filetype;
+} fileSupport [] = {
+	{"gif", "image/gif" },  
+	{"jpg", "image/jpg" }, 
+	{"jpeg","image/jpeg"},
+	{"png", "image/png" },  
+	{"ico", "image/ico" },  
+	{"zip", "image/zip" },  
+	{"gz",  "image/gz"  },  
+	{"tar", "image/tar" },  
+	{"htm", "text/html" },  
+	{"html","text/html" },  
+	{0,0} };
 typedef struct {
-	char* statusCode;
 	int http_status,keep_alive;
-	struct Response {
-		int keep_alive;
-	} response;
+	char* statusCode;
+	char* filePath;
+	char* fileType;
 } HTTPResponse;
+struct strustri {
+    int var1;
+    char *var2;
+}test1 = {
+            .var1 = 12
+    };
 typedef struct {
 	char message[10000];
 	char* method;
 	char uri[10000];
 	char httpVersion[8];
-	short isSimple;
 	char host[10000];
+	short isSimple;
 } HTTPRequest;
 
-int writeResponse(int sock, HTTPResponse httpRes){
-	char *statusLine=httpRes.statusCode;
-	char *head="Cache-Control: no-cache, private\nContent-Length: 11\nDate: Mon, 24 Nov 2014 10:21:21 GMT\n\n\0"; //two new lines
-	char *header = (char *) malloc(strlen(statusLine)+strlen(head));
-	/* Initial memory allocation */
-	const char* p = &statusLine[0];
-	int i=0;
-	for (; *p != '\0'; p++)
-	{
-		header[i++]=*p;
+void writeResponse(int socket, HTTPResponse httpRes){
+	char buffer[BUFFERSIZE]; //4kB best size for sending data
+	FILE *fp;
+	//r-read data
+	if((fp = fopen(httpRes.filePath, "r")) == NULL) {
+		//error can't open file
+		// or file not found		
+		logger(socket,NOTFOUND, "File not found",httpRes.filePath);
 	}
-	p = &head[0];
-	for (; *p != '\0'; p++)
-	{
-		header[i++]=*p;
-	}
-	printf("%d\n",i);
-	printf("\n%s",header);
-	write(sock , header , i);
-    char *content="hello Sandi";
-	write(sock , content , strlen(content));
+	else {
+		fseek(fp, 0L, SEEK_END); //goes to end of the file
+		long contentLength=ftell(fp);
+		fseek(fp,0L,SEEK_SET); //go back to where we were
+		//RoSa is the name of web server - acronym for Romain, Sandi
+		sprintf(buffer,"HTTP/1.1 200 OK\nServer: %s/%s\nContent-Length: %ld\nConnection: close\nContent-Type: %s\n\n",SERVERNAME, VERSION, contentLength, httpRes.fileType);
+		/* Header + a blank line */
+		//logger(LOG,"Header",buffer,hit);
+		write(socket,buffer,strlen(buffer));
 	
+		// send file in 4KB block
+		while (	(contentLength = fread(buffer, 1, BUFFERSIZE,fp)) > 0 ) {
+			write(socket,buffer,contentLength);
+		}
+		fclose(fp);
+	}
+	free(httpRes.filePath);	
 }
 
 void *connection_handler(void *mySocket)
@@ -168,7 +152,9 @@ void *connection_handler(void *mySocket)
     //Get the socket descriptor
     int sock = *(int*)mySocket;
     int read_size;
-    HTTPResponse httpRes;
+    HTTPResponse httpRes = {
+		.fileType = NULL
+	};
     HTTPRequest httpReq;
     
     //Receive a message from client
@@ -194,12 +180,32 @@ void *connection_handler(void *mySocket)
 				// get uri
 				httpReq.uri[i++]=*p;
 			}
+			// httpReq.uri == "/" not working ????
+			if(strcmp(httpReq.uri,"/") == 0) {
+				strncpy(httpReq.uri, "/index.html", 11);
+			}
+			//file extension support
+			int uriLength=strlen(httpReq.uri),extensionLength;
+			for(i=0;fileSupport[i].ext != 0;i++) {
+				extensionLength = strlen(fileSupport[i].ext);
+				//we get last characters from uri, -extensionLength
+				// if they match
+				if( strncmp(&httpReq.uri[uriLength-extensionLength], fileSupport[i].ext, extensionLength) == 0) {
+					//fileType is found
+					httpRes.fileType =fileSupport[i].filetype;
+					break;
+				}
+			}
+			if(httpRes.fileType == NULL) {
+				logger(sock,FORBIDDEN,"file extension type not supported",httpReq.uri);
+				break;
+			}
+			asprintf(&httpRes.filePath,"../www%s",httpReq.uri);
 			//simple request
 			if(*(p+3)=='\0') {
 				httpReq.isSimple=1;//it must respond with an HTTP/0.9 Simple-Response
+		    	writeResponse(sock , httpRes);
 				//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
-				char *content="Simple request";
-		    	write(sock , content , strlen(content));
 		    	close(sock);
 		    	break;
 			}
@@ -213,21 +219,20 @@ void *connection_handler(void *mySocket)
 						break;
 					}
 					else if(*p=='\0'){
-						//wrong request
+						logger(sock,BADREQUEST,"Bad Request...","");
 						break;
 					}
 					httpReq.httpVersion[i++]=*p;
 				}
 				httpReq.httpVersion[i++]='\0'; //end of string
-				printf("URI: %s\n",httpReq.uri);
-				printf("HTTP version: %s\n",httpReq.httpVersion);
+/*				printf("URI: %s\n",httpReq.uri);*/
+/*				printf("HTTP version: %s\n",httpReq.httpVersion);*/
+				printf("Message: %s\n",httpReq.message);
 				for (i=0; *p != ' ' && *p != '\r'; p++)
 				{
 					httpReq.httpVersion[i++]=*p;
 				}
-			
-				printf("%.*s", read_size, httpReq.message);
-				httpRes.statusCode="HTTP/1.1 " "200 OK" "\n\0";
+				
 				writeResponse(sock, httpRes);
 			}
 			
@@ -258,7 +263,7 @@ void *connection_handler(void *mySocket)
 			write(sock , header , i);
 		}
 		else {
-			logger(501,"Only simple GET and HEAD operation supported","",sock);
+			logger(sock,NOTIMPLEMENTED,"Only simple GET and HEAD operation supported","");
 			break;
 		}
     }
