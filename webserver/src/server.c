@@ -139,7 +139,7 @@ void logger(int type, char *s1, char *s2, int socket_fd)
 {
 	int fd ;
 	char logbuffer[BUFSIZE*2];
-
+char *content;
 	switch (type) {
 	case ERROR: (void)sprintf(logbuffer,"ERROR: %s:%s Errno=%d exiting pid=%d",s1, s2, errno,getpid()); 
 		break;
@@ -155,12 +155,12 @@ void logger(int type, char *s1, char *s2, int socket_fd)
 		(void)write(socket_fd, "HTTP/1.1 404 Not Found\nContent-Length: 136\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n",224);
 		(void)sprintf(logbuffer,"NOT FOUND: %s:%s",s1, s2); 
 		break;
-	case LOG: (void)sprintf(logbuffer," INFO: %s:%s:%d",s1, s2,socket_fd); break;
 	case 500:
 		write(socket_fd, "HTTP/1.1 500 Internal Server Error\nContent-Length: 185\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\nThe requested URL, file type or operation is not allowed on this simple static file webserver.\n</body></html>\n",271);
 		break;
-	case 501: write(socket_fd, "HTTP/1.1 501 Not Implemented\nContent-Length: 185\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\nThe requested URL, file type or operation is not allowed on this simple static file webserver.\n</body></html>\n",271);
+	case 501: write(socket_fd, "HTTP/1.1 501 Not Implemented\nContent-Length: 203\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>501 Not Implemented</title>\n</head><body>\n<h1>Not Implemented</h1>\nThis type of operation is not supported on this webserver. Server support only GET and HEAD methods.\n</body></html>\n",295);
 		break;
+	case LOG: (void)sprintf(logbuffer," INFO: %s:%s:%d",s1, s2,socket_fd); break;
 	}	
 	/* No checks here, nothing can be done with a failure anyway */
 	if((fd = open("nweb.log", O_CREAT| O_WRONLY | O_APPEND,0644)) >= 0) {
@@ -168,7 +168,8 @@ void logger(int type, char *s1, char *s2, int socket_fd)
 		(void)write(fd,"\n",1);      
 		(void)close(fd);
 	}
-	if(type == ERROR || type == NOTFOUND || type == FORBIDDEN) exit(3);
+	//close the socket due an error occurred
+	close(socket_fd);
 }
 
 struct HTTPResponse {
@@ -187,13 +188,13 @@ struct HTTPRequest {
 	char host[10000];
 };
 
-int writeResponse(int sock, struct HTTPRequest httpRes){
+int writeResponse(int sock, struct HTTPResponse httpRes){
 	char *statusLine=httpRes.statusCode;
 	char *head="Cache-Control: no-cache, private\nContent-Length: 11\nDate: Mon, 24 Nov 2014 10:21:21 GMT\n\n\0"; //two new lines
 	char *header = (char *) malloc(strlen(statusLine)+strlen(head));
 	/* Initial memory allocation */
-	p = &statusLine[0];
-	i=0;
+	const char* p = &statusLine[0];
+	int i=0;
 	for (; *p != '\0'; p++)
 	{
 		header[i++]=*p;
@@ -206,6 +207,7 @@ int writeResponse(int sock, struct HTTPRequest httpRes){
 	printf("%d\n",i);
 	printf("\n%s",header);
 	write(sock , header , i);
+    char *content="hello Sandi";
 	write(sock , content , strlen(content));
 	
 }
@@ -227,7 +229,6 @@ void *connection_handler(void *mySocket)
 		if(memcmp(p, "GET",3)==0){
 			httpReq.method="GET";
 			p+=4;//+1 space		
-		    char *content="hello Sandi";
 			//decode request URI ???
 		    for (; ; p++)
 			{
@@ -246,7 +247,7 @@ void *connection_handler(void *mySocket)
 			if(*(p+3)=='\0') {
 				httpReq.isSimple=1;//it must respond with an HTTP/0.9 Simple-Response
 				//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
-				content="Simple request";
+				char *content="Simple request";
 		    	write(sock , content , strlen(content));
 		    	close(sock);
 		    	break;
@@ -306,7 +307,8 @@ void *connection_handler(void *mySocket)
 			write(sock , header , i);
 		}
 		else {
-			logger(FORBIDDEN,"Only simple GET and HEAD operation supported",httpReq.message,sock);
+			logger(501,"Only simple GET and HEAD operation supported","",sock);
+			break;
 		}
     }
      
