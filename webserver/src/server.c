@@ -3,19 +3,10 @@
 #include<stdlib.h>    //strlen
 #include<sys/socket.h>
 #include<arpa/inet.h> //inet_addr
-#include<unistd.h>    //write
  
 #include<pthread.h> //for threading , link with lpthread
  
-#include <errno.h>
-#include <semaphore.h>
-#include <fcntl.h>
-#define VERSION 23
-#define BUFSIZE 8096
-#define ERROR      42
-#define LOG        44
-#define FORBIDDEN 403
-#define NOTFOUND  404
+#include "logger.h"
 
 void *connection_handler(void *);
  
@@ -60,9 +51,6 @@ int main(int argc , char *argv[])
     while( (clientSocket = accept(mySocket, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
         puts("Connection accepted");
-         
-        //message = "Hello Client , I have received your connection. And now I will assign a handler for you\n";
-        //write(clientSocket , message , strlen(message));
          
         pthread_t sniffer_thread;
         clientSocketP = malloc(1);
@@ -135,60 +123,23 @@ char *getFile(char *sendFile){
 }
 
 
-void logger(int type, char *s1, char *s2, int socket_fd)
-{
-	int fd ;
-	char logbuffer[BUFSIZE*2];
-char *content;
-	switch (type) {
-	case ERROR: (void)sprintf(logbuffer,"ERROR: %s:%s Errno=%d exiting pid=%d",s1, s2, errno,getpid()); 
-		break;
-	case 400: 
-		(void)write(socket_fd, "HTTP/1.1 400 Bad Request\nContent-Length: 185\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\nThe requested URL, file type or operation is not allowed on this simple static file webserver.\n</body></html>\n",271);
-		(void)sprintf(logbuffer,"FORBIDDEN: %s:%s",s1, s2); 
-		break;
-	case 403: 
-		(void)write(socket_fd, "HTTP/1.1 403 Forbidden\nContent-Length: 185\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\nThe requested URL, file type or operation is not allowed on this simple static file webserver.\n</body></html>\n",271);
-		(void)sprintf(logbuffer,"FORBIDDEN: %s:%s",s1, s2); 
-		break;
-	case 404: 
-		(void)write(socket_fd, "HTTP/1.1 404 Not Found\nContent-Length: 136\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n",224);
-		(void)sprintf(logbuffer,"NOT FOUND: %s:%s",s1, s2); 
-		break;
-	case 500:
-		write(socket_fd, "HTTP/1.1 500 Internal Server Error\nContent-Length: 185\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\nThe requested URL, file type or operation is not allowed on this simple static file webserver.\n</body></html>\n",271);
-		break;
-	case 501: write(socket_fd, "HTTP/1.1 501 Not Implemented\nContent-Length: 203\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>501 Not Implemented</title>\n</head><body>\n<h1>Not Implemented</h1>\nThis type of operation is not supported on this webserver. Server support only GET and HEAD methods.\n</body></html>\n",295);
-		break;
-	case LOG: (void)sprintf(logbuffer," INFO: %s:%s:%d",s1, s2,socket_fd); break;
-	}	
-	/* No checks here, nothing can be done with a failure anyway */
-	if((fd = open("nweb.log", O_CREAT| O_WRONLY | O_APPEND,0644)) >= 0) {
-		(void)write(fd,logbuffer,strlen(logbuffer)); 
-		(void)write(fd,"\n",1);      
-		(void)close(fd);
-	}
-	//close the socket due an error occurred
-	close(socket_fd);
-}
-
-struct HTTPResponse {
+typedef struct {
 	char* statusCode;
 	int http_status,keep_alive;
 	struct Response {
 		int keep_alive;
 	} response;
-};
-struct HTTPRequest {
+} HTTPResponse;
+typedef struct {
 	char message[10000];
 	char* method;
 	char uri[10000];
 	char httpVersion[8];
 	short isSimple;
 	char host[10000];
-};
+} HTTPRequest;
 
-int writeResponse(int sock, struct HTTPResponse httpRes){
+int writeResponse(int sock, HTTPResponse httpRes){
 	char *statusLine=httpRes.statusCode;
 	char *head="Cache-Control: no-cache, private\nContent-Length: 11\nDate: Mon, 24 Nov 2014 10:21:21 GMT\n\n\0"; //two new lines
 	char *header = (char *) malloc(strlen(statusLine)+strlen(head));
@@ -217,8 +168,8 @@ void *connection_handler(void *mySocket)
     //Get the socket descriptor
     int sock = *(int*)mySocket;
     int read_size;
-    struct HTTPResponse httpRes;
-    struct HTTPRequest httpReq;
+    HTTPResponse httpRes;
+    HTTPRequest httpReq;
     
     //Receive a message from client
     while( (read_size = recv(sock , httpReq.message , 10000 , 0)) > 0 )
@@ -315,7 +266,7 @@ void *connection_handler(void *mySocket)
     if(read_size == 0)
     {
         puts("Client disconnected");
-        fflush(stdout);
+        fflush(stdout); //print everything in the stdout buffer
     }
     else if(read_size == -1)
     {

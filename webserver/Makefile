@@ -1,6 +1,6 @@
 CC = gcc #CC rezervirana beseda za prevajalnike
 CFLAGS = -pthread -o # rezervirana beseda za te znake
-DAT = src/server.c #ime datoteke
+DAT = src/server.c src/logger.c #ime datoteke
 TARGET = server #ime datoteke
 
 all: $(DAT)
