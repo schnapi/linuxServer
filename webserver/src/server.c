@@ -12,6 +12,13 @@
 #define SERVERNAME "RoSa"
 #define BUFFERSIZE 4096
 
+/*HERE YOU CAN WRITE TASKS WHICH HAS TO BE DONE;*/
+/*IF YOU ARE WORKING ON ANY TASK JUST WRITE YOUR NAME AT THE END OF THE TASK*/
+
+/*open tasks*/
+/*Makefile -> compile all files with extension *c and create *.o files in objectives folder*/
+/*Which files are in header folder???*/
+
 void *connection_handler(void *);
  
 int main(int argc , char *argv[])
