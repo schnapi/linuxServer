@@ -5,6 +5,7 @@
 #include<arpa/inet.h> //inet_addr
  
 #include<pthread.h> //for threading , link with lpthread
+#include <limits.h> //PATH_MAX
  
 #include "logger.h"
 #define VERSION "1.0"
@@ -201,6 +202,16 @@ void *connection_handler(void *mySocket)
 				break;
 			}
 			asprintf(&httpRes.filePath,"../www%s",httpReq.uri);
+			
+			//2.7 URL Validation
+			char resolved_path[PATH_MAX];
+			char *ptr;
+			ptr = realpath(httpRes.filePath, resolved_path);
+			if(!ptr){
+				logger(sock,NOTFOUND, "File not found - realpath",httpRes.filePath);
+				break;
+			}
+			
 			//simple request
 			if(*(p+3)=='\0') {
 				httpReq.isSimple=1;//it must respond with an HTTP/0.9 Simple-Response
