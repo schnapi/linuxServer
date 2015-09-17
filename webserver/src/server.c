@@ -12,12 +12,7 @@
 #define SERVERNAME "RoSa"
 #define BUFFERSIZE 4096
 
-/*HERE YOU CAN WRITE TASKS WHICH HAS TO BE DONE;*/
-/*IF YOU ARE WORKING ON ANY TASK JUST WRITE YOUR NAME AT THE END OF THE TASK*/
-
-/*open tasks*/
-/*Makefile -> compile all files with extension *c and create *.o files in objectives folder*/
-/*Which files are in header folder???*/
+/*check the tasks file*/
 
 void *connection_handler(void *);
  
@@ -112,12 +107,6 @@ typedef struct {
 	char* filePath;
 	char* fileType;
 } HTTPResponse;
-struct strustri {
-    int var1;
-    char *var2;
-}test1 = {
-            .var1 = 12
-    };
 typedef struct {
 	char message[10000];
 	char* method;
@@ -132,9 +121,9 @@ void writeResponse(int socket, HTTPResponse httpRes){
 	FILE *fp;
 	//r-read data
 	if((fp = fopen(httpRes.filePath, "r")) == NULL) {
-		//error can't open file
-		// or file not found		
-		logger(socket,NOTFOUND, "File not found",httpRes.filePath);
+		//error can't open file or file not found // already is checked with realpath 
+		//permisions denied	
+		logger(socket,NOTFOUND, "Permision denied",httpRes.filePath);
 	}
 	else {
 		fseek(fp, 0L, SEEK_END); //goes to end of the file
