@@ -51,22 +51,22 @@ void logger(int socket,int method, char *s1, char *s2)
 		asprintf(&logMessage,"INFO: %s:%s:%d\n",s1, s2,socket);
 		break;
 	case BADREQUEST: 
-		write(socket, "HTTP/1.1 400 Bad Request\nContent-Length: 296\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>403 Bad Request</title>\n</head><body>\n<h1>Bad Request</h1>\nThe server cannot or will not process the request due to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing)\n</body></html>\n",384);
+		write(socket, "HTTP/1.1 400 Bad Request\nContent-Length: 461\nConnection: close\nContent-Type: text/html\n\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\"><html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>403 Bad Request</title>\n</head><body>\n<h1>Bad Request</h1>\n<p>The server cannot or will not process the request due to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing)</p>\n</body></html>\n",549);
 		asprintf(&logMessage,"Bad Request: %s:%s\n",s1, s2);
 		break;
-	case FORBIDDEN: 
-		write(socket, "HTTP/1.1 403 Forbidden\nContent-Length: 185\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\nThe requested URL, file type or operation is not allowed on this simple static file webserver.\n</body></html>\n",271);
+	case FORBIDDEN:
+		write(socket, "HTTP/1.1 403 Forbidden\nContent-Length: 351\nConnection: close\nContent-Type: text/html\n\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\n<p>The requested URL, file type or operation is not allowed on this simple static file webserver.</p>\n</body></html>\n",437);
 		asprintf(&logMessage,"FORBIDDEN: %s:%s\n",s1, s2);
 		break;
-	case NOTFOUND: 
-		write(socket, "HTTP/1.1 404 Not Found\nContent-Length: 136\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>404 Not Found</title>\n</head><body>\n<h1>Not Found</h1>\nThe requested URL was not found on this server.\n</body></html>\n",224);
+	case NOTFOUND:
+		write(socket, "HTTP/1.1 404 Not Found\nContent-Length: 305\nConnection: close\nContent-Type: text/html\n\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>404 Not Found</title>\n</head>\n<body>\n<h1>Not Found</h1>\n<p>The requested URL was not found on this server.</p>\n</body></html>\n",391);
 		asprintf(&logMessage,"Not Found: %s:%s\n",s1, s2);
 		break;
 	case INTERNALSERVERERROR:
-		write(socket, "HTTP/1.1 500 Internal Server Error\nContent-Length: 245\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>500 Internal Server Error</title>\n</head><head>\n<title>500 Internal Server Error</title>\n</head>\n<body>\n<h1>500 Internal Server Error</h1>\n<p>ERROR WITH AN CONFIG FILE,</p>\n<p>or something else went wrong.</p>\n</body></html>\n",343);
+		write(socket, "HTTP/1.1 500 Internal Server Error\nContent-Length: 349\nConnection: close\nContent-Type: text/html\n\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>500 Internal Server Error</title>\n</head>\n<body>\n<h1>500 Internal Server Error</h1>\n<p>ERROR WITH AN CONFIG FILE,</p>\n<p>or something else went wrong.</p>\n</body></html>\n",447);
 		asprintf(&logMessage,"Internal Server Error: %s:%s\n",s1, s2);
 		break;
-	case NOTIMPLEMENTED: write(socket, "HTTP/1.1 501 Not Implemented\nContent-Length: 203\nConnection: close\nContent-Type: text/html\n\n<html><head>\n<title>501 Not Implemented</title>\n</head><body>\n<h1>Not Implemented</h1>\nThis type of operation is not supported on this webserver. Server support only GET and HEAD methods.\n</body></html>\n",295);
+	case NOTIMPLEMENTED: write(socket, "HTTP/1.1 501 Not Implemented\nContent-Length: 369\nConnection: close\nContent-Type: text/html\n\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>501 Not Implemented</title>\n</head><body>\n<h1>Not Implemented</h1>\n<p>This type of operation is not supported on this webserver. Server support only GET and HEAD methods.</p>\n</body></html>\n",461);
 		asprintf(&logMessage,"Not Implemented: %s:%s\n",s1, s2);
 		break;
 	}
