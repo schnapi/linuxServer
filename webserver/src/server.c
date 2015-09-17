@@ -106,11 +106,11 @@ typedef struct {
 	char* statusCode;
 	char* filePath;
 	char* fileType;
+	char* method;
 } HTTPResponse;
 typedef struct {
 	char message[10000];
-	char* method;
-	char uri[10000];
+	char uri[PATH_MAX];
 	char httpVersion[8];
 	char host[10000];
 	short isSimple;
@@ -134,13 +134,15 @@ void writeResponse(int socket, HTTPResponse httpRes){
 		/* Header + a blank line */
 		//logger(LOG,"Header",buffer,hit);
 		write(socket,buffer,strlen(buffer));
-	
-		// send file in 4KB block
-		while (	(contentLength = fread(buffer, 1, BUFFERSIZE,fp)) > 0 ) {
-			write(socket,buffer,contentLength);
+		if(httpRes.method=="GET") {
+			// send file in 4KB block
+			while (	(contentLength = fread(buffer, 1, BUFFERSIZE,fp)) > 0 ) {
+				write(socket,buffer,contentLength);
+			}
 		}
 		fclose(fp);
 	}
+	
 	free(httpRes.filePath);	
 }
 
@@ -161,117 +163,93 @@ void *connection_handler(void *mySocket)
 		const char* p = &httpReq.message[0];
 		int i=0;
 		if(memcmp(p, "GET",3)==0){
-			httpReq.method="GET";
-			p+=4;//+1 space		
-			//decode request URI ???
-		    for (; ; p++)
+			httpRes.method="GET";
+			p+=4;//+1 space				
+		}
+		else if(memcmp(p, "HEAD",4)==0){
+			//The HEAD method is identical to GET except that the server must not return any Entity-Body in the response. The metainformation contained in the HTTP headers in response to a HEAD request should be identical to the information sent in response to a GET request. This method can be used for obtaining metainformation about the resource identified by the Request-URI without transferring the Entity-Body itself. This method is often used for testing hypertext links for validity, accessibility, and recent modification. There is no "conditional HEAD" request analogous to the conditional GET. If an If-Modified-Since header field is included with a HEAD request, it should be ignored.
+			httpRes.method="HEAD";
+			p+=5;//+1 space
+		}
+		else {
+			logger(sock,NOTIMPLEMENTED,"Only simple GET and HEAD operation supported","");
+			break;
+		}
+			
+		//decode request URI ???
+		for (; ; p++)
+		{
+			if(*p=='\r') {
+				p+=2; // \r\n two characters
+				break;
+			}
+			else if(*p==' '){
+				p++;
+				break;
+			}
+			// get uri
+			httpReq.uri[i++]=*p;
+		}
+		// httpReq.uri == "/" not working ????
+		if(strcmp(httpReq.uri,"/") == 0) {
+			strncpy(httpReq.uri, "/index.html", 11);
+		}
+		//file extension support
+		int uriLength=strlen(httpReq.uri),extensionLength;
+		for(i=0;fileSupport[i].ext != 0;i++) {
+			extensionLength = strlen(fileSupport[i].ext);
+			//we get last characters from uri, -extensionLength
+			// if they match
+			if( strncmp(&httpReq.uri[uriLength-extensionLength], fileSupport[i].ext, extensionLength) == 0) {
+				//fileType is found
+				httpRes.fileType =fileSupport[i].filetype;
+				break;
+			}
+		}
+		if(httpRes.fileType == NULL) {
+			logger(sock,FORBIDDEN,"file extension type not supported",httpReq.uri);
+			break;
+		}
+		asprintf(&httpRes.filePath,"../www%s",httpReq.uri);
+	
+		//2.7 URL Validation
+		char resolved_path[PATH_MAX];
+		char *ptr;
+		ptr = realpath(httpRes.filePath, resolved_path);
+		if(!ptr){
+			logger(sock,NOTFOUND, "File not found - realpath",httpRes.filePath);
+			break;
+		}
+	
+		//simple request
+		if(*(p+3)=='\0') {
+			httpReq.isSimple=1;//it must respond with an HTTP/0.9 Simple-Response
+			writeResponse(sock , httpRes);
+			//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
+			close(sock);
+			break;
+		}
+		//full request
+		else {
+			//decode HTTP version
+			for (i=0; ; p++)
 			{
 				if(*p=='\r') {
 					p+=2; // \r\n two characters
 					break;
 				}
-				else if(*p==' '){
-					p++;
+				else if(*p=='\0'){
+					logger(sock,BADREQUEST,"Bad Request...","");
 					break;
 				}
-				// get uri
-				httpReq.uri[i++]=*p;
+				httpReq.httpVersion[i++]=*p;
 			}
-			// httpReq.uri == "/" not working ????
-			if(strcmp(httpReq.uri,"/") == 0) {
-				strncpy(httpReq.uri, "/index.html", 11);
-			}
-			//file extension support
-			int uriLength=strlen(httpReq.uri),extensionLength;
-			for(i=0;fileSupport[i].ext != 0;i++) {
-				extensionLength = strlen(fileSupport[i].ext);
-				//we get last characters from uri, -extensionLength
-				// if they match
-				if( strncmp(&httpReq.uri[uriLength-extensionLength], fileSupport[i].ext, extensionLength) == 0) {
-					//fileType is found
-					httpRes.fileType =fileSupport[i].filetype;
-					break;
-				}
-			}
-			if(httpRes.fileType == NULL) {
-				logger(sock,FORBIDDEN,"file extension type not supported",httpReq.uri);
-				break;
-			}
-			asprintf(&httpRes.filePath,"../www%s",httpReq.uri);
-			
-			//2.7 URL Validation
-			char resolved_path[PATH_MAX];
-			char *ptr;
-			ptr = realpath(httpRes.filePath, resolved_path);
-			if(!ptr){
-				logger(sock,NOTFOUND, "File not found - realpath",httpRes.filePath);
-				break;
-			}
-			
-			//simple request
-			if(*(p+3)=='\0') {
-				httpReq.isSimple=1;//it must respond with an HTTP/0.9 Simple-Response
-		    	writeResponse(sock , httpRes);
-				//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
-		    	close(sock);
-		    	break;
-			}
-			//full request
-			else {
-				//decode HTTP version
-				for (i=0; ; p++)
-				{
-					if(*p=='\r') {
-						p+=2; // \r\n two characters
-						break;
-					}
-					else if(*p=='\0'){
-						logger(sock,BADREQUEST,"Bad Request...","");
-						break;
-					}
-					httpReq.httpVersion[i++]=*p;
-				}
-				httpReq.httpVersion[i++]='\0'; //end of string
-/*				printf("URI: %s\n",httpReq.uri);*/
-/*				printf("HTTP version: %s\n",httpReq.httpVersion);*/
-				printf("Message: %s\n",httpReq.message);
-				for (i=0; *p != ' ' && *p != '\r'; p++)
-				{
-					httpReq.httpVersion[i++]=*p;
-				}
-				
-				writeResponse(sock, httpRes);
-			}
-			
-		}
-		else if(memcmp(p, "HEAD",4)==0){
-			//The HEAD method is identical to GET except that the server must not return any Entity-Body in the response. The metainformation contained in the HTTP headers in response to a HEAD request should be identical to the information sent in response to a GET request. This method can be used for obtaining metainformation about the resource identified by the Request-URI without transferring the Entity-Body itself. This method is often used for testing hypertext links for validity, accessibility, and recent modification. There is no "conditional HEAD" request analogous to the conditional GET. If an If-Modified-Since header field is included with a HEAD request, it should be ignored.
-			httpReq.method="HEAD";
-			httpRes.statusCode="HTTP/1.1 " "200 OK" "\n\0";
-			printf("HEAD it works\n");
-			p+=4;
-			char *statusLine=httpRes.statusCode;
-			char *head="Cache-Control: no-cache, private\nContent-Length: 0\nDate: Mon, 24 Nov 2014 10:21:21 GMT\n\n\0"; //two new lines
-	   		char *header = (char *) malloc(strlen(statusLine)+strlen(head));
-			/* Initial memory allocation */
-			p = &statusLine[0];
-			i=0;
-			for (; *p != '\0'; p++)
-			{
-				header[i++]=*p;
-			}
-			p = &head[0];
-			for (; *p != '\0'; p++)
-			{
-				header[i++]=*p;
-			}
-			printf("%d\n",i);
-			printf("\n%s",header);
-			write(sock , header , i);
-		}
-		else {
-			logger(sock,NOTIMPLEMENTED,"Only simple GET and HEAD operation supported","");
-			break;
+			httpReq.httpVersion[i++]='\0'; //end of string
+	/*				printf("URI: %s\n",httpReq.uri);*/
+	/*				printf("HTTP version: %s\n",httpReq.httpVersion);*/
+			printf("Message: %s\n",httpReq.message);
+		
+			writeResponse(sock, httpRes);
 		}
     }
      
