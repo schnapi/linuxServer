@@ -6,7 +6,13 @@
 
 open tasks:
 
-
+2.5 Process Management
+2.6 Command Line Options
+2.8 Client Compatibility
+2.9 Configuration File
+2.10 Run as Daemon
+2.11 Logging
+2.12 Jail
 _______________________________________________________________________________________________________________________
 tasks to be done:
 
@@ -17,5 +23,7 @@ tasks to be done:
 _______________________________________________________________________________________________________________________
 almost done or done tasks:
 
-2.2 HTTP 1.0 //note - check codes descriptions
+2.2 HTTP 1.0
+2.3 HTML 4.0
+2.4 Concurrent Request Handling
 2.7 URL Validation

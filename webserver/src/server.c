@@ -117,7 +117,6 @@ void writeResponse(int socket, HTTPResponse httpRes){
 	char buffer[BUFFERSIZE]; //4kB best size for sending data
 	FILE *fp;
 	//r-read data
-	errno=0;
 	if((fp = fopen(httpRes.filePath, "r")) == NULL) {
 		//error can't open file or file not found // already is checked with realpath 
 		//permisions denied
@@ -208,6 +207,8 @@ void *connection_handler(void *mySocket)
 				break;
 			}
 		}
+/*		printf("test: %s\n",httpRes.message);*/
+/*		printf("test: %s\n",httpRes.fileType);*/
 		if(httpRes.fileType == NULL) {
 			logger(sock,FORBIDDEN,"file extension type not supported",httpReq.uri);
 			break;
@@ -217,7 +218,8 @@ void *connection_handler(void *mySocket)
 		//2.7 URL Validation
 		char resolved_path[PATH_MAX];
 		realpath(httpRes.filePath, resolved_path);
-		if(checkErrno(sock,httpRes.filePath)) {//check if any error has occured, 0 - file exist
+		printf("test: %d\n",errno);
+		if(checkErrno(sock,httpRes.filePath)) {//check if any error has occured, 0 means that file exist
 			break;
 		}
 	
