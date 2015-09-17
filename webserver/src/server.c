@@ -82,12 +82,8 @@ int main(int argc , char *argv[])
     return 0;
 }
 
- /*
- * This will handle connection for each client
- * */
-
 struct {
-	char *ext;
+	char *extension;
 	char *filetype;
 } fileSupport [] = {
 	{"gif", "image/gif" },  
@@ -101,6 +97,7 @@ struct {
 	{"htm", "text/html" },  
 	{"html","text/html" },  
 	{0,0} };
+
 typedef struct {
 	int http_status,keep_alive;
 	char* statusCode;
@@ -120,10 +117,11 @@ void writeResponse(int socket, HTTPResponse httpRes){
 	char buffer[BUFFERSIZE]; //4kB best size for sending data
 	FILE *fp;
 	//r-read data
+	errno=0;
 	if((fp = fopen(httpRes.filePath, "r")) == NULL) {
 		//error can't open file or file not found // already is checked with realpath 
-		//permisions denied	
-		logger(socket,NOTFOUND, "Permision denied",httpRes.filePath);
+		//permisions denied
+		checkErrno(socket,httpRes.filePath);
 	}
 	else {
 		fseek(fp, 0L, SEEK_END); //goes to end of the file
@@ -146,6 +144,10 @@ void writeResponse(int socket, HTTPResponse httpRes){
 	free(httpRes.filePath);	
 }
 
+
+ /*
+ * This will handle connection for each client
+ * */
 void *connection_handler(void *mySocket)
 {
     //Get the socket descriptor
@@ -196,11 +198,11 @@ void *connection_handler(void *mySocket)
 		}
 		//file extension support
 		int uriLength=strlen(httpReq.uri),extensionLength;
-		for(i=0;fileSupport[i].ext != 0;i++) {
-			extensionLength = strlen(fileSupport[i].ext);
+		for(i=0;fileSupport[i].extension != 0;i++) {
+			extensionLength = strlen(fileSupport[i].extension);
 			//we get last characters from uri, -extensionLength
 			// if they match
-			if( strncmp(&httpReq.uri[uriLength-extensionLength], fileSupport[i].ext, extensionLength) == 0) {
+			if( strncmp(&httpReq.uri[uriLength-extensionLength], fileSupport[i].extension, extensionLength) == 0) {
 				//fileType is found
 				httpRes.fileType =fileSupport[i].filetype;
 				break;
@@ -214,10 +216,8 @@ void *connection_handler(void *mySocket)
 	
 		//2.7 URL Validation
 		char resolved_path[PATH_MAX];
-		char *ptr;
-		ptr = realpath(httpRes.filePath, resolved_path);
-		if(!ptr){
-			logger(sock,NOTFOUND, "File not found - realpath",httpRes.filePath);
+		realpath(httpRes.filePath, resolved_path);
+		if(checkErrno(sock,httpRes.filePath)) {//check if any error has occured, 0 - file exist
 			break;
 		}
 	
