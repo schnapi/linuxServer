@@ -10,10 +10,12 @@ open tasks:
 _______________________________________________________________________________________________________________________
 tasks to be done:
 
+2.1 Project Structure - missing *o files and files in header folder
 /*Makefile -> compile all files with extension *c and create *.o files in objectives folder*/
 /*Which files are in header folder???*/
 
 _______________________________________________________________________________________________________________________
-done tasks:
+almost done or done tasks:
 
+2.2 HTTP 1.0 //note - check codes descriptions
 2.7 URL Validation
