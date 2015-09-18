@@ -5,14 +5,7 @@
 
 
 open tasks:
-
-2.5 Process Management
-2.6 Command Line Options
-2.8 Client Compatibility
-2.9 Configuration File
-2.10 Run as Daemon
-2.11 Logging
-2.12 Jail
+2.9 Configuration File // Sandi
 _______________________________________________________________________________________________________________________
 tasks to be done:
 
@@ -20,10 +13,17 @@ tasks to be done:
 /*Makefile -> compile all files with extension *c and create *.o files in objectives folder*/
 /*Which files are in header folder???*/
 
+2.5 Process Management
+2.6 Command Line Options
+2.8 Client Compatibility
+2.10 Run as Daemon
+2.11 Logging
+2.12 Jail
+
 _______________________________________________________________________________________________________________________
 almost done or done tasks:
 
 2.2 HTTP 1.0
 2.3 HTML 4.0
-2.4 Concurrent Request Handling
-2.7 URL Validation
+2.4 Concurrent Request Handling // just threading is done, we need at least two methods
+2.7 URL Validation // we have used realpath function
