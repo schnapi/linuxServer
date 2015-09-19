@@ -12,6 +12,13 @@
 #define SIZEOFDATETIMEGMT 40
 
 typedef struct {
+	int port;
+	char* configurationFile;
+	char* rootDirectory;
+	char* handlingMethod;
+} ServerConfigurations;
+
+typedef struct {
 	char *extension;
 	char *filetype;
 } FileExtensions;
@@ -54,9 +61,11 @@ FileExtensions fileSupport [] = {
 //note - static variables cannot be shared between files
 extern char dateTimeGMT[SIZEOFDATETIMEGMT];
 extern FileExtensions fileSupport;
+extern ServerConfigurations sc;
 #endif
 
 void generateHeader(HTTPResponse *httpRes);
 void UtilityFree(HTTPResponse *httpRes);
+ServerConfigurations sc;
 
 #endif

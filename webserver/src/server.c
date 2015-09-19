@@ -9,14 +9,17 @@
  
 #define SERVER
 #include "utilityHTTP.h"
+#include "utilityManageFiles.h"
 #include "logger.h"
 
 /*check the tasks file*/
 
 void *connection_handler(void *);
- 
+
 int main(int argc , char *argv[])
 {     
+	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
+
     //Create a new socket
 	//Address Family - AF_INET (this is IP version 4) Type - SOCK_STREAM (this means connection oriented TCP protocol, SOCK_DGRAM is for UDP protocol) Protocol - 0 [ or IPPROTO_IP This is IP protocol]
     int mySocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -29,7 +32,7 @@ int main(int argc , char *argv[])
     //sockaddr_in structure
     server.sin_family = AF_INET; //IP version 4
     server.sin_addr.s_addr = INADDR_ANY; // we can receive packets from any of the network interface card installed in the system
-    server.sin_port = htons( 8888 ); // port number
+    server.sin_port = htons( sc.port ); // port number
     
 	int enable = 1; //enable options - nonzero
 	//SO_REUSEADDR - reuse of local address
@@ -49,27 +52,37 @@ int main(int argc , char *argv[])
     listen(mySocket , 3);
      
     //Accept and incoming connection
-    puts("Waiting for incoming connections...");
+    printf("Waiting for incoming connections on port: %d\n",sc.port);
+	printf("Chosen handling method is: %s\n",sc.handlingMethod);
+	printf("www root directory is: %s\n",sc.rootDirectory);
     int c = sizeof(struct sockaddr_in), clientSocket, *clientSocketP;
-    char *message;
-	printf("%d",c);
     while( (clientSocket = accept(mySocket, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
-        puts("Connection accepted");
-         
-        pthread_t sniffer_thread;
-        clientSocketP = malloc(1);
-        *clientSocketP = clientSocket;
-         
-        if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) clientSocketP) < 0)
-        {
-            perror("could not create thread");
-            return 1;
-        }
-         
-        //Now join the thread , so that we dont terminate before the thread
-        //pthread_join( sniffer_thread , NULL);
-        puts("Handler assigned");
+		puts("Connection accepted");
+		if(!strncmp(sc.handlingMethod,"thread",6)) {
+			pthread_t sniffer_thread;
+			clientSocketP = malloc(1);
+			*clientSocketP = clientSocket;
+			 
+			if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) clientSocketP) < 0)
+			{
+				perror("could not create thread");
+				return 1;
+			}
+			 
+			//Now join the thread , so that we dont terminate before the thread
+			//pthread_join( sniffer_thread , NULL);
+			puts("Handler assigned");
+		}
+		else if(!strncmp(sc.handlingMethod,"fork",4)) {
+			puts("Not implemented");
+		}
+		else if(!strncmp(sc.handlingMethod,"prefork",7)) {
+			puts("Not implemented");
+		}
+		else if(!strncmp(sc.handlingMethod,"mux",3)) {
+			puts("Not implemented");
+		}
     }
      
     if (clientSocket<0)
@@ -84,7 +97,6 @@ int main(int argc , char *argv[])
 void writeResponse(int socket, HTTPResponse *httpRes){
 	FILE *fp;
 	//r-read data
-	printf("read: %s\n",httpRes->filePath);
 	if((fp = fopen(httpRes->filePath, "r")) == NULL) {
 		//error can't open file or file not found // already is checked with realpath 
 		//permisions denied
@@ -161,9 +173,18 @@ void *connection_handler(void *mySocket)
 			// get uri
 			httpReq.uri[i++]=*p;
 		}
-		// httpReq.uri == "/" not working ????
 		if(strcmp(httpReq.uri,"/") == 0) {
 			strncpy(httpReq.uri, "/index.html", 11);
+		}
+		
+		//2.7 URL Validation
+		asprintf(&httpRes.filePath,"%s%s",sc.rootDirectory,httpReq.uri);
+		char resolved_path[PATH_MAX];
+		realpath(httpRes.filePath, resolved_path);
+		httpRes.filePath=resolved_path;
+		
+		if(checkErrno(sock,&httpRes)) {//check if any error has occured, 0 means that file exist
+			break;
 		}
 		//file extension support
 		int uriLength=strlen(httpReq.uri),extensionLength;
@@ -181,16 +202,6 @@ void *connection_handler(void *mySocket)
 /*		printf("test: %s\n",httpRes.fileType);*/
 		if(httpRes.fileType == NULL) {
 			logger(sock,FORBIDDEN,&httpRes,"file extension type not supported",httpReq.uri);
-			break;
-		}
-		asprintf(&httpRes.filePath,"../www%s",httpReq.uri);
-	
-		//2.7 URL Validation
-		char resolved_path[PATH_MAX];
-		realpath(httpRes.filePath, resolved_path);
-		httpRes.filePath=resolved_path;
-		
-		if(checkErrno(sock,&httpRes)) {//check if any error has occured, 0 means that file exist
 			break;
 		}
 	

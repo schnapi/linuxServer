@@ -1,0 +1,5 @@
+// handling strategies - fork, thread, prefork, mux
+rootDirectory: /home/sandik/Desktop/Programming in Unix environment/lab assignment 2/project/www
+port: 8889
+handlingMethod: thread
+
