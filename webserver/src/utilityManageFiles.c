@@ -1,4 +1,4 @@
-#include "utilityManageFiles.h"
+#include "../include/utilityManageFiles.h"
 
 void parseConfigurationFile(ServerConfigurations *sc, char *fileName) {
 	// we get current directory for configuration file

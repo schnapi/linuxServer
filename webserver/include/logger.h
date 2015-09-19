@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include<string.h>    //strlen
 #include <errno.h>
+#include <unistd.h> //read and write
 #include "utilityHTTP.h"
 
 #define ERROR -1

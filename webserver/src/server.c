@@ -3,14 +3,15 @@
 #include<stdlib.h>    //strlen
 #include<sys/socket.h>
 #include<arpa/inet.h> //inet_addr
+#include <unistd.h> //read and write
  
 #include<pthread.h> //for threading , link with lpthread
 #include <limits.h> //PATH_MAX
  
 #define SERVER
-#include "utilityHTTP.h"
-#include "utilityManageFiles.h"
-#include "logger.h"
+#include "../include/utilityHTTP.h"
+#include "../include/utilityManageFiles.h"
+#include "../include/logger.h"
 
 /*check the tasks file*/
 
@@ -115,7 +116,7 @@ void writeResponse(int socket, HTTPResponse *httpRes){
 			//logger(LOG,"Header",buffer,hit);
 			write(socket,httpRes->buffer,strlen(httpRes->buffer));
 		}
-		if(httpRes->method=="GET") {
+		if(!strncmp(httpRes->method,"GET",3)) {
 			// send file in 4KB block
 			while (	(httpRes->contentLength = fread(httpRes->buffer, 1, BUFFERSIZE,fp)) > 0 ) {
 				write(socket,httpRes->buffer,httpRes->contentLength);
