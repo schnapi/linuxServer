@@ -94,7 +94,7 @@ void logger(int socket,int method, Client *client, char *s1, char *s2/*, char *l
 		asprintf(&logMessage,"%s - - [%s] \"%s %s %s\" %d %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,method,client->httpRes.contentLength);
 		//a-append data
 		// if file not exist create it
-		if((fp = fopen("log", "a")) != NULL) {
+		if((fp = fopen(sc.customLog, "a")) != NULL) {
 			fputs(logMessage,fp);    
 			fclose(fp);
 		}

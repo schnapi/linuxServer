@@ -22,6 +22,8 @@ int main(int argc , char *argv[])
 {     
 	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
 
+	//(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
+	sc.customLog = "log.log";
 	if(sc.customLog==NULL) {
 		sc.customLog = "syslog";
 		openlog ("RoSa/1.0", LOG_CONS | LOG_PID, LOG_DAEMON);
@@ -174,7 +176,7 @@ void *connection_handler(void *mySocket)
     Client client;
     client.httpRes.fileType = NULL;
     // get ip from client
-	char ipstr[INET6_ADDRSTRLEN];
+	char ipstr[INET_ADDRSTRLEN];
 	bzero(ipstr, 50);
 	struct sockaddr_in address;
 	socklen_t address_len = sizeof(address);
