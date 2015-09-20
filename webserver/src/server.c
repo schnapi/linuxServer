@@ -4,6 +4,7 @@
 #include<sys/socket.h>
 #include<arpa/inet.h> //inet_addr
 #include <unistd.h> //read and write
+#include <syslog.h>
  
 #include<pthread.h> //for threading , link with lpthread
 #include <limits.h> //PATH_MAX
@@ -21,11 +22,22 @@ int main(int argc , char *argv[])
 {     
 	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
 
+	if(sc.customLog==NULL) {
+		sc.customLog = "syslog";
+		openlog ("RoSa/1.0", LOG_CONS | LOG_PID, LOG_DAEMON);
+	}
+
+	syslog (LOG_NOTICE, "Program started by User %d", getuid ());
+	syslog (LOG_INFO, "A tree falls in a forest");
+
+	syslog (LOG_NOTICE, "Server %s started by User %d", SERVERNAME, getuid ());
+/*	closelog ();*/
     //Create a new socket
 	//Address Family - AF_INET (this is IP version 4) Type - SOCK_STREAM (this means connection oriented TCP protocol, SOCK_DGRAM is for UDP protocol) Protocol - 0 [ or IPPROTO_IP This is IP protocol]
     int mySocket = socket(AF_INET, SOCK_STREAM, 0);
     if(mySocket == -1)
     {
+syslog (LOG_INFO, "Program started by User %d", getuid ());
         perror("Could not create socket");
     }
      
@@ -64,7 +76,7 @@ int main(int argc , char *argv[])
 			pthread_t sniffer_thread;
 			clientSocketP = malloc(1);
 			*clientSocketP = clientSocket;
-			 
+			
 			if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) clientSocketP) < 0)
 			{
 				perror("could not create thread");
@@ -95,38 +107,62 @@ int main(int argc , char *argv[])
     return 0;
 }
 
-void writeResponse(int socket, HTTPResponse *httpRes){
+void writeResponse(int socket, Client *client){
 	FILE *fp;
 	//r-read data
-	if((fp = fopen(httpRes->filePath, "r")) == NULL) {
+	if((fp = fopen(client->httpRes.filePath, "r")) == NULL) {
 		//error can't open file or file not found // already is checked with realpath 
 		//permisions denied
-		checkErrno(socket,httpRes);
+		checkErrno(socket,client);
 	}
 	else {
 		//if request is not simple then send headers
-		if(!httpRes->simple) {
+		if(!client->httpRes.simple) {
 			fseek(fp, 0L, SEEK_END); //goes to end of the file
-			httpRes->contentLength=ftell(fp);
+			client->httpRes.contentLength=ftell(fp);
 			fseek(fp,0L,SEEK_SET); //go back to where we were
-			httpRes->statusCode="200 OK";
-			generateHeader(httpRes); // in utilityHTTP.c
-			printf("test: %zu\n",strlen(httpRes->buffer));
+			client->httpRes.statusCode="200 OK";
+			generateHeader(&client->httpRes); // in utilityHTTP.c
+			printf("test: %zu\n",strlen(client->httpRes.buffer));
 			/* Header + a blank line */
 			//logger(LOG,"Header",buffer,hit);
-			write(socket,httpRes->buffer,strlen(httpRes->buffer));
+			write(socket,client->httpRes.buffer,strlen(client->httpRes.buffer));
 		}
-		if(!strncmp(httpRes->method,"GET",3)) {
+		if(!strncmp(client->httpReq.method,"GET",3)) {
 			// send file in 4KB block
-			while (	(httpRes->contentLength = fread(httpRes->buffer, 1, BUFFERSIZE,fp)) > 0 ) {
-				write(socket,httpRes->buffer,httpRes->contentLength);
+			while (	(client->httpRes.contentLength = fread(client->httpRes.buffer, 1, BUFFERSIZE,fp)) > 0 ) {
+				write(socket,client->httpRes.buffer,client->httpRes.contentLength);
 			}
 		}
 		fclose(fp);
 	}
 }
 
+int validateURL(int sock,Client *client){
+	//2.7 URL Validation
+	asprintf(&client->httpRes.filePath,"%s%s",sc.rootDirectory,client->httpReq.uri);
+	char resolved_path[PATH_MAX];
+	realpath(client->httpRes.filePath, resolved_path);
+	client->httpRes.filePath=resolved_path;
 
+	if(checkErrno(sock,client)) {//check if any error has occured, 0 means that file exist
+		return 0;
+	}
+	//file extension support
+	int uriLength=strlen(client->httpReq.uri),extensionLength;
+	int i=0;
+	for(i=0;fileSupport[i].extension != 0;i++) {
+		extensionLength = strlen(fileSupport[i].extension);
+		//we get last characters from uri, -extensionLength
+		// if they match
+		if( strncmp(&client->httpReq.uri[uriLength-extensionLength], fileSupport[i].extension, extensionLength) == 0) {
+			//fileType is found
+			client->httpRes.fileType =fileSupport[i].filetype;
+			return 0;
+		}
+	}
+	return 1;
+}
  /*
  * This will handle connection for each client
  * */
@@ -135,28 +171,34 @@ void *connection_handler(void *mySocket)
     //Get the socket descriptor
     int sock = *(int*)mySocket;
     int read_size;
-    HTTPResponse httpRes = {
-		.fileType = NULL
-	};
-    HTTPRequest httpReq;
-    
+    Client client;
+    client.httpRes.fileType = NULL;
+    // get ip from client
+	char ipstr[INET6_ADDRSTRLEN];
+	bzero(ipstr, 50);
+	struct sockaddr_in address;
+	socklen_t address_len = sizeof(address);
+	getpeername(sock, (struct sockaddr *) &address, &address_len);
+	inet_ntop(AF_INET, &address.sin_addr, ipstr, sizeof(ipstr));
+	client.httpRes.IPAddress = ipstr;
+	
     //Receive a message from client
-    while( (read_size = recv(sock , httpReq.message , 10000 , 0)) > 0 )
+    while( (read_size = recv(sock , client.httpReq.message , 10000 , 0)) > 0 )
     {
         //Send the message back to client
-		const char* p = &httpReq.message[0];
+		const char* p = &client.httpReq.message[0];
 		int i=0;
 		if(memcmp(p, "GET",3)==0){
-			httpRes.method="GET";
+			client.httpReq.method="GET";
 			p+=4;//+1 space				
 		}
 		else if(memcmp(p, "HEAD",4)==0){
 			//The HEAD method is identical to GET except that the server must not return any Entity-Body in the response. The metainformation contained in the HTTP headers in response to a HEAD request should be identical to the information sent in response to a GET request. This method can be used for obtaining metainformation about the resource identified by the Request-URI without transferring the Entity-Body itself. This method is often used for testing hypertext links for validity, accessibility, and recent modification. There is no "conditional HEAD" request analogous to the conditional GET. If an If-Modified-Since header field is included with a HEAD request, it should be ignored.
-			httpRes.method="HEAD";
+			client.httpReq.method="HEAD";
 			p+=5;//+1 space
 		}
 		else {
-			logger(sock,NOTIMPLEMENTED,&httpRes, "Only simple GET and HEAD operation supported","");
+			logger(sock,NOTIMPLEMENTED,&client, "Only simple GET and HEAD operation supported","");
 			break;
 		}
 			
@@ -172,44 +214,19 @@ void *connection_handler(void *mySocket)
 				break;
 			}
 			// get uri
-			httpReq.uri[i++]=*p;
+			client.httpReq.uri[i++]=*p;
 		}
-		if(strcmp(httpReq.uri,"/") == 0) {
-			strncpy(httpReq.uri, "/index.html", 11);
-		}
-		
-		//2.7 URL Validation
-		asprintf(&httpRes.filePath,"%s%s",sc.rootDirectory,httpReq.uri);
-		char resolved_path[PATH_MAX];
-		realpath(httpRes.filePath, resolved_path);
-		httpRes.filePath=resolved_path;
-		
-		if(checkErrno(sock,&httpRes)) {//check if any error has occured, 0 means that file exist
-			break;
-		}
-		//file extension support
-		int uriLength=strlen(httpReq.uri),extensionLength;
-		for(i=0;fileSupport[i].extension != 0;i++) {
-			extensionLength = strlen(fileSupport[i].extension);
-			//we get last characters from uri, -extensionLength
-			// if they match
-			if( strncmp(&httpReq.uri[uriLength-extensionLength], fileSupport[i].extension, extensionLength) == 0) {
-				//fileType is found
-				httpRes.fileType =fileSupport[i].filetype;
-				break;
-			}
-		}
-/*		printf("test: %s\n",httpRes.message);*/
-/*		printf("test: %s\n",httpRes.fileType);*/
-		if(httpRes.fileType == NULL) {
-			logger(sock,FORBIDDEN,&httpRes,"file extension type not supported",httpReq.uri);
-			break;
+		if(strcmp(client.httpReq.uri,"/") == 0) {
+			strncpy(client.httpReq.uri, "/index.html", 11);
 		}
 	
 		//simple request
 		if(*(p+3)=='\0') {
-			httpRes.simple=1;//it must respond with an HTTP/0.9 Simple-Response
-			writeResponse(sock , &httpRes);
+			//if URL is not valid 
+			if(!validateURL(sock,&client))
+				break;
+			client.httpRes.simple=1;//it must respond with an HTTP/0.9 Simple-Response
+			writeResponse(sock , &client);
 			//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
 			close(sock);
 			break;
@@ -224,17 +241,21 @@ void *connection_handler(void *mySocket)
 					break;
 				}
 				else if(*p=='\0'){
-					logger(sock,BADREQUEST,&httpRes,"Bad Request...","");
+					logger(sock,BADREQUEST,&client,"Bad Request...","");
 					break;
 				}
-				httpReq.httpVersion[i++]=*p;
+				client.httpReq.httpVersion[i++]=*p;
 			}
-			httpReq.httpVersion[i++]='\0'; //end of string
+			client.httpReq.httpVersion[i++]='\0'; //end of string
+			
+			//if URL is not valid 
+			if(!validateURL(sock,&client))
+				break;
 	/*				printf("URI: %s\n",httpReq.uri);*/
 	/*				printf("HTTP version: %s\n",httpReq.httpVersion);*/
-			printf("Message: %s\n",httpReq.message);
+			printf("Message: %s\n",client.httpReq.message);
 		
-			writeResponse(sock, &httpRes);
+			writeResponse(sock, &client);
 		}
     }
      

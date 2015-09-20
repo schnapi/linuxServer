@@ -10,12 +10,14 @@
 #define BUFFERSIZE 4096
 #define SERVERNAME "RoSa/1.0" //RoSa is the name of web server - acronym for Romain, Sandi
 #define SIZEOFDATETIMEGMT 40
+#define SIZEOFDATETIMECLF 40
 
 typedef struct {
 	int port;
 	char* configurationFile;
 	char* rootDirectory;
 	char* handlingMethod;
+	char* customLog;
 } ServerConfigurations;
 
 typedef struct {
@@ -31,18 +33,26 @@ typedef struct {
 	char* statusCode;
 	char* filePath;
 	char* fileType;
-	char* method;
 	char lastModified[SIZEOFDATETIMEGMT];
+	char* IPAddress;
 	
 } HTTPResponse;
 typedef struct {
 	char message[10000];
+	char* method;
 	char uri[PATH_MAX];
 	char httpVersion[8];
 	char host[10000];
 } HTTPRequest;
+
+typedef struct {
+	HTTPResponse httpRes;
+	HTTPRequest httpReq;
+} Client;
+
 #ifdef SERVER
 char dateTimeGMT[SIZEOFDATETIMEGMT];
+char dateTimeCLF[SIZEOFDATETIMECLF];
 FileExtensions fileSupport [] = { 
 	{"html","text/html" }, 
 	{"htm", "text/html" },  
@@ -60,12 +70,14 @@ FileExtensions fileSupport [] = {
 //this is a linker to global variables
 //note - static variables cannot be shared between files
 extern char dateTimeGMT[SIZEOFDATETIMEGMT];
+extern char dateTimeCLF[SIZEOFDATETIMECLF];
 extern FileExtensions fileSupport;
 extern ServerConfigurations sc;
 #endif
 
 void generateHeader(HTTPResponse *httpRes);
 void UtilityFree(HTTPResponse *httpRes);
+
 ServerConfigurations sc;
 
 #endif

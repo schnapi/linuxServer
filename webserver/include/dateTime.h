@@ -7,6 +7,7 @@
 #include <time.h> /* time_t, struct tm, time, localtime, strftime */
 
 void getDateTimeGMT(char *buffer, size_t size);
+void getDateTimeCLF(char *buffer, size_t size);
 void getFileCreationTime(char *buffer, size_t size, char *filePath);
 
 #endif

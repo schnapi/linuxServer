@@ -12,6 +12,18 @@ void getDateTimeGMT(char *buffer, size_t size) {
 	strftime (buffer,size,"%a, %e %b %Y %X %Z",timeinfo);
 }
 
+void getDateTimeCLF(char *buffer, size_t size) {
+
+	time_t rawtime;
+	struct tm * timeinfo;
+
+	time ( &rawtime );
+
+	timeinfo = localtime ( &rawtime );
+
+	strftime (buffer,size,"%d/%m/%Y:%T %z",timeinfo);
+}
+
 void getFileCreationTime(char *buffer, size_t size, char *filePath)
 {
     struct stat attrib;
