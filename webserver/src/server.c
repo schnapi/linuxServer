@@ -158,10 +158,10 @@ int validateURL(int sock,Client *client){
 		if( strncmp(&client->httpReq.uri[uriLength-extensionLength], fileSupport[i].extension, extensionLength) == 0) {
 			//fileType is found
 			client->httpRes.fileType =fileSupport[i].filetype;
-			return 0;
+			return 1;
 		}
 	}
-	return 1;
+	return 0;
 }
  /*
  * This will handle connection for each client
@@ -249,8 +249,11 @@ void *connection_handler(void *mySocket)
 			client.httpReq.httpVersion[i++]='\0'; //end of string
 			
 			//if URL is not valid 
-			if(!validateURL(sock,&client))
+			if(!validateURL(sock,&client)){
+	printf("Sandi\n");
 				break;
+			}
+	printf("sda\n");
 	/*				printf("URI: %s\n",httpReq.uri);*/
 	/*				printf("HTTP version: %s\n",httpReq.httpVersion);*/
 			printf("Message: %s\n",client.httpReq.message);

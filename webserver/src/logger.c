@@ -9,6 +9,7 @@ int checkErrno(int socket, Client *client){
 		printf("test6: %d\n",ENOMEM);
 		printf("test7: %d\n",ENOENT);
 		printf("test8: %d\n",ENOTDIR);
+	printf("Errno is: %d\n",errno);
 	switch(errno) {
 		case EACCES:
 			logger(socket,FORBIDDEN,client, "Read or search permission was denied for a component of the path prefix.",client->httpRes.filePath);
@@ -90,7 +91,7 @@ void logger(int socket,int method, Client *client, char *s1, char *s2/*, char *l
 /*	else */
 	{
 		//creates log message in CLF (Common logFile format)
-		asprintf(&logMessage,"%s - - [%s] \"%s %s %s\" %d %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,FORBIDDEN,client->httpRes.contentLength);
+		asprintf(&logMessage,"%s - - [%s] \"%s %s %s\" %d %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,method,client->httpRes.contentLength);
 		//a-append data
 		// if file not exist create it
 		if((fp = fopen("log", "a")) != NULL) {
