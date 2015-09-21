@@ -14,6 +14,7 @@
 #include "../include/utilityManageFiles.h"
 #include "../include/logger.h"
 
+
 /*check the tasks file*/
 
 void *connection_handler(void *);
@@ -23,24 +24,21 @@ int main(int argc , char *argv[])
 	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
 
 	//(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
-	sc.customLog = "log.log";
+	//sc.customLog = "log.log";
 	if(sc.customLog==NULL) {
-		sc.customLog = "syslog";
-		openlog ("RoSa/1.0", LOG_CONS | LOG_PID, LOG_DAEMON);
+		openlog ("RoSa/1.0", LOG_CONS | LOG_PID, LOG_LOCAL1);
 	}
-
-	syslog (LOG_NOTICE, "Program started by User %d", getuid ());
-	syslog (LOG_INFO, "A tree falls in a forest");
-
-	syslog (LOG_NOTICE, "Server %s started by User %d", SERVERNAME, getuid ());
-/*	closelog ();*/
+	char* number;
+	asprintf(&number,"%d", getuid());
+	loggerServer(LOG_NOTICE,"Server RoSa started by User",number,NULL);
+	free(number);
+	
     //Create a new socket
 	//Address Family - AF_INET (this is IP version 4) Type - SOCK_STREAM (this means connection oriented TCP protocol, SOCK_DGRAM is for UDP protocol) Protocol - 0 [ or IPPROTO_IP This is IP protocol]
     int mySocket = socket(AF_INET, SOCK_STREAM, 0);
     if(mySocket == -1)
     {
-syslog (LOG_INFO, "Program started by User %d", getuid ());
-        perror("Could not create socket");
+		loggerServer(LOG_ERR,"Could not create a socket","",NULL);
     }
      
     struct sockaddr_in server , client;
@@ -53,27 +51,30 @@ syslog (LOG_INFO, "Program started by User %d", getuid ());
 	//SO_REUSEADDR - reuse of local address
 	if ( setsockopt(mySocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) == -1 )
 	{
-		perror("setsockopt");
+		loggerServer(LOG_ERR,"setsockopt","",NULL);
 	}
     //Bind a socket - listen to connections that are comming 
     if( bind(mySocket,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
-        perror("bind failed");
+		loggerServer(LOG_ERR,"bind failed","",NULL);
         return 1;
     }
-    puts("bind done");
+	loggerServer(LOG_NOTICE,"bind done","",NULL);
      
     //http://pubs.opengroup.org/onlinepubs/9699919799/functions/listen.html
     listen(mySocket , 3);
      
     //Accept and incoming connection
-    printf("Waiting for incoming connections on port: %d\n",sc.port);
-	printf("Chosen handling method is: %s\n",sc.handlingMethod);
-	printf("www root directory is: %s\n",sc.rootDirectory);
+	asprintf(&number,"%d", sc.port);
+	loggerServer(LOG_NOTICE,"Waiting for incoming connections on port:",number,NULL);
+	free(number);
+	loggerServer(LOG_NOTICE,"Chosen handling method is:",sc.handlingMethod,NULL);
+	loggerServer(LOG_DEBUG,"www root directory is:",sc.rootDirectory,NULL);
     int c = sizeof(struct sockaddr_in), clientSocket, *clientSocketP;
     while( (clientSocket = accept(mySocket, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
-		puts("Connection accepted");
+    //set ip
+		loggerServer(LOG_NOTICE,"Connection accepted","",NULL);
 		if(!strncmp(sc.handlingMethod,"thread",6)) {
 			pthread_t sniffer_thread;
 			clientSocketP = malloc(1);
@@ -81,30 +82,37 @@ syslog (LOG_INFO, "Program started by User %d", getuid ());
 			
 			if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) clientSocketP) < 0)
 			{
-				perror("could not create thread");
+				loggerServer(LOG_ERR,"could not create thread","",NULL);
 				return 1;
 			}
 			 
 			//Now join the thread , so that we dont terminate before the thread
-			//pthread_join( sniffer_thread , NULL);
-			puts("Handler assigned");
+			pthread_join( sniffer_thread , NULL);
+			loggerServer(LOG_NOTICE,"Handler assigned","",NULL);
 		}
 		else if(!strncmp(sc.handlingMethod,"fork",4)) {
 			puts("Not implemented");
+			return 3;
 		}
 		else if(!strncmp(sc.handlingMethod,"prefork",7)) {
 			puts("Not implemented");
+			return 3;
 		}
 		else if(!strncmp(sc.handlingMethod,"mux",3)) {
 			puts("Not implemented");
+			return 3;
 		}
     }
      
     if (clientSocket<0)
     {
-        perror("accept failed");
+		loggerServer(LOG_ERR,"Accept failed","",NULL);
         return 1;
     }
+    
+	if(sc.customLog==NULL) {
+    	closelog();
+	}
      
     return 0;
 }
@@ -125,26 +133,31 @@ void writeResponse(int socket, Client *client){
 			fseek(fp,0L,SEEK_SET); //go back to where we were
 			client->httpRes.statusCode="200 OK";
 			generateHeader(&client->httpRes); // in utilityHTTP.c
-			printf("test: %zu\n",strlen(client->httpRes.buffer));
 			/* Header + a blank line */
-			//logger(LOG,"Header",buffer,hit);
 			write(socket,client->httpRes.buffer,strlen(client->httpRes.buffer));
 		}
 		if(!strncmp(client->httpReq.method,"GET",3)) {
 			// send file in 4KB block
-			while (	(client->httpRes.contentLength = fread(client->httpRes.buffer, 1, BUFFERSIZE,fp)) > 0 ) {
-				write(socket,client->httpRes.buffer,client->httpRes.contentLength);
+			int length;
+			while (	(length = fread(client->httpRes.buffer, 1, BUFFERSIZE,fp)) > 0 ) {
+				write(socket,client->httpRes.buffer,length);
 			}
 		}
 		fclose(fp);
+		logger(200, client);
 	}
 }
 
 int validateURL(int sock,Client *client){
 	//2.7 URL Validation
 	asprintf(&client->httpRes.filePath,"%s%s",sc.rootDirectory,client->httpReq.uri);
+	//checks overflow
+	if(strlen(client->httpRes.filePath)>=PATH_MAX){
+		return 0;
+	}
 	char resolved_path[PATH_MAX];
 	realpath(client->httpRes.filePath, resolved_path);
+	
 	client->httpRes.filePath=resolved_path;
 
 	if(checkErrno(sock,client)) {//check if any error has occured, 0 means that file exist
@@ -200,14 +213,21 @@ void *connection_handler(void *mySocket)
 			p+=5;//+1 space
 		}
 		else {
-			logger(sock,NOTIMPLEMENTED,&client, "Only simple GET and HEAD operation supported","");
+			loggerClient(sock,NOTIMPLEMENTED,&client, "Only simple GET and HEAD operation supported","");
 			break;
 		}
 			
 		//decode request URI ???
 		for (; ; p++)
 		{
-			if(*p=='\r') {
+			//if is owerflow
+			if(i==PATH_MAX) {
+				loggerClient(sock,BADREQUEST,&client,"","");
+				close(sock);
+    			free(mySocket);
+				return (void*)1;
+			}
+			else if(*p=='\r') {
 				p+=2; // \r\n two characters
 				break;
 			}
@@ -218,6 +238,7 @@ void *connection_handler(void *mySocket)
 			// get uri
 			client.httpReq.uri[i++]=*p;
 		}
+		client.httpReq.uri[i]='\0'; //end of string
 		if(strcmp(client.httpReq.uri,"/") == 0) {
 			strncpy(client.httpReq.uri, "/index.html", 11);
 		}
@@ -225,8 +246,11 @@ void *connection_handler(void *mySocket)
 		//simple request
 		if(*(p+3)=='\0') {
 			//if URL is not valid 
-			if(!validateURL(sock,&client))
-				break;
+			if(!validateURL(sock,&client)){
+				close(sock);
+    			free(mySocket);
+				return (void*)1;
+			}
 			client.httpRes.simple=1;//it must respond with an HTTP/0.9 Simple-Response
 			writeResponse(sock , &client);
 			//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
@@ -243,7 +267,7 @@ void *connection_handler(void *mySocket)
 					break;
 				}
 				else if(*p=='\0'){
-					logger(sock,BADREQUEST,&client,"Bad Request...","");
+					loggerClient(sock,BADREQUEST,&client,"Bad Request...","");
 					break;
 				}
 				client.httpReq.httpVersion[i++]=*p;
@@ -252,10 +276,10 @@ void *connection_handler(void *mySocket)
 			
 			//if URL is not valid 
 			if(!validateURL(sock,&client)){
-	printf("Sandi\n");
-				break;
+				close(sock);
+    			free(mySocket);
+				return (void*)1;
 			}
-	printf("sda\n");
 	/*				printf("URI: %s\n",httpReq.uri);*/
 	/*				printf("HTTP version: %s\n",httpReq.httpVersion);*/
 			printf("Message: %s\n",client.httpReq.message);
@@ -266,12 +290,12 @@ void *connection_handler(void *mySocket)
      
     if(read_size == 0)
     {
-        puts("Client disconnected");
+		loggerServer(LOG_NOTICE,"Client disconnected","",client.httpRes.IPAddress);
         fflush(stdout); //print everything in the stdout buffer
     }
     else if(read_size == -1)
     {
-        perror("recv failed");
+		loggerServer(LOG_ERR,"Recv failer","",client.httpRes.IPAddress);
     }
          
     //Free the socket pointer

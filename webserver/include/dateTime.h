@@ -8,6 +8,7 @@
 
 void getDateTimeGMT(char *buffer, size_t size);
 void getDateTimeCLF(char *buffer, size_t size);
+void getDateTimeLog(char *buffer, size_t size);
 void getFileCreationTime(char *buffer, size_t size, char *filePath);
 
 #endif
