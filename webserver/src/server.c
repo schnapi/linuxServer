@@ -19,6 +19,11 @@
 
 void *connection_handler(void *);
 
+typedef struct {
+	int socket;
+	char* IpAddress;
+} ClientSocketP;
+
 int main(int argc , char *argv[])
 {     
 	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
@@ -70,25 +75,29 @@ int main(int argc , char *argv[])
 	free(number);
 	loggerServer(LOG_NOTICE,"Chosen handling method is:",sc.handlingMethod,NULL);
 	loggerServer(LOG_DEBUG,"www root directory is:",sc.rootDirectory,NULL);
-    int c = sizeof(struct sockaddr_in), clientSocket, *clientSocketP;
+    int c = sizeof(struct sockaddr_in), clientSocket;
+    ClientSocketP *clientSocketP;
     while( (clientSocket = accept(mySocket, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
-    //set ip
-		loggerServer(LOG_NOTICE,"Connection accepted","",NULL);
+    	//get ip
+		char ipAddress[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &(client.sin_addr), ipAddress, INET_ADDRSTRLEN);
+		loggerServer(LOG_NOTICE,"Connection accepted","",ipAddress);
 		if(!strncmp(sc.handlingMethod,"thread",6)) {
 			pthread_t sniffer_thread;
 			clientSocketP = malloc(1);
-			*clientSocketP = clientSocket;
+			clientSocketP->IpAddress = ipAddress;
+			clientSocketP->socket = clientSocket;
 			
 			if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) clientSocketP) < 0)
 			{
-				loggerServer(LOG_ERR,"could not create thread","",NULL);
+				loggerServer(LOG_ERR,"could not create thread","",ipAddress);
 				return 1;
 			}
 			 
 			//Now join the thread , so that we dont terminate before the thread
 			pthread_join( sniffer_thread , NULL);
-			loggerServer(LOG_NOTICE,"Handler assigned","",NULL);
+			loggerServer(LOG_NOTICE,"Handler assigned","",ipAddress);
 		}
 		else if(!strncmp(sc.handlingMethod,"fork",4)) {
 			puts("Not implemented");
@@ -126,16 +135,17 @@ void writeResponse(int socket, Client *client){
 		checkErrno(socket,client);
 	}
 	else {
+		fseek(fp, 0L, SEEK_END); //goes to end of the file
+		client->httpRes.contentLength=ftell(fp);
+		fseek(fp,0L,SEEK_SET); //go back to where we were
+		client->httpRes.statusCode="200 OK";
 		//if request is not simple then send headers
 		if(!client->httpRes.simple) {
-			fseek(fp, 0L, SEEK_END); //goes to end of the file
-			client->httpRes.contentLength=ftell(fp);
-			fseek(fp,0L,SEEK_SET); //go back to where we were
-			client->httpRes.statusCode="200 OK";
 			generateHeader(&client->httpRes); // in utilityHTTP.c
 			/* Header + a blank line */
 			write(socket,client->httpRes.buffer,strlen(client->httpRes.buffer));
 		}
+		//if is get request then send file
 		if(!strncmp(client->httpReq.method,"GET",3)) {
 			// send file in 4KB block
 			int length;
@@ -144,10 +154,12 @@ void writeResponse(int socket, Client *client){
 			}
 		}
 		fclose(fp);
-		logger(200, client);
+		//send success to logger
+		loggerSuccess(200, client);
 	}
 }
 
+//return 1 is file is valid and 0 if error has occured
 int validateURL(int sock,Client *client){
 	//2.7 URL Validation
 	asprintf(&client->httpRes.filePath,"%s%s",sc.rootDirectory,client->httpReq.uri);
@@ -183,19 +195,13 @@ int validateURL(int sock,Client *client){
  * */
 void *connection_handler(void *mySocket)
 {
+    ClientSocketP* clientSocketP=(ClientSocketP*)mySocket;
     //Get the socket descriptor
-    int sock = *(int*)mySocket;
+    int sock = clientSocketP->socket;
     int read_size;
     Client client;
     client.httpRes.fileType = NULL;
-    // get ip from client
-	char ipstr[INET_ADDRSTRLEN];
-	bzero(ipstr, 50);
-	struct sockaddr_in address;
-	socklen_t address_len = sizeof(address);
-	getpeername(sock, (struct sockaddr *) &address, &address_len);
-	inet_ntop(AF_INET, &address.sin_addr, ipstr, sizeof(ipstr));
-	client.httpRes.IPAddress = ipstr;
+	client.httpRes.IPAddress = clientSocketP->IpAddress;
 	
     //Receive a message from client
     while( (read_size = recv(sock , client.httpReq.message , 10000 , 0)) > 0 )
@@ -207,7 +213,7 @@ void *connection_handler(void *mySocket)
 			client.httpReq.method="GET";
 			p+=4;//+1 space				
 		}
-		else if(memcmp(p, "HEAD",4)==0){
+		else if(memcmp(p, "HEAD",4)==0 && *(p+5)==' '){
 			//The HEAD method is identical to GET except that the server must not return any Entity-Body in the response. The metainformation contained in the HTTP headers in response to a HEAD request should be identical to the information sent in response to a GET request. This method can be used for obtaining metainformation about the resource identified by the Request-URI without transferring the Entity-Body itself. This method is often used for testing hypertext links for validity, accessibility, and recent modification. There is no "conditional HEAD" request analogous to the conditional GET. If an If-Modified-Since header field is included with a HEAD request, it should be ignored.
 			client.httpReq.method="HEAD";
 			p+=5;//+1 space
@@ -245,6 +251,13 @@ void *connection_handler(void *mySocket)
 	
 		//simple request
 		if(*(p+3)=='\0') {
+			//if wrong method
+		 	if(strncmp(client.httpReq.method,"GET",3)){
+		 		loggerClient(sock,BADREQUEST,&client,"","");
+				close(sock);
+    			free(mySocket);
+				return (void*)1;
+		 	}
 			//if URL is not valid 
 			if(!validateURL(sock,&client)){
 				close(sock);
@@ -252,6 +265,7 @@ void *connection_handler(void *mySocket)
 				return (void*)1;
 			}
 			client.httpRes.simple=1;//it must respond with an HTTP/0.9 Simple-Response
+			strncpy(client.httpReq.httpVersion, "HTTP/0.9", 8);
 			writeResponse(sock , &client);
 			//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
 			close(sock);

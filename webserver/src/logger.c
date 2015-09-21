@@ -36,7 +36,6 @@ int checkErrno(int socket, Client *client){
 			loggerClient(socket,BADREQUEST,client, "A component of the path prefix is not a directory.",client->httpRes.filePath);
 		break;	
 	}
-	printf("Errno is: %d\n",errno);
 	return errno;
 }
 
@@ -125,12 +124,12 @@ void loggerClient(int socket,int method, Client *client, char *s1, char *s2/*, c
 	//write header and then content
 	write(socket,client->httpRes.buffer,strlen(client->httpRes.buffer));
 	write(socket,content,client->httpRes.contentLength);
-	logger(method, client);
+	loggerSuccess(method, client);
 	//close the socket due an error occurred
 	close(socket);
 }
 
-void logger(int method, Client *client){
+void loggerSuccess(int method, Client *client){
 	//date time int Common logInfo format for logger
 	getDateTimeCLF(dateTimeCLF, SIZEOFDATETIMECLF);
 	if(sc.customLog==NULL){

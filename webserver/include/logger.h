@@ -21,5 +21,5 @@ void writeToLogFile(char* filePath, char *logMessage);
 int checkErrno(int socket, Client *client);
 void loggerClient(int socket,int method,Client *client, char *s1, char *s2);
 void loggerServer(int level,char *s1,char *s2,char* clientIp);
-void logger(int method, Client *client);
+void loggerSuccess(int method, Client *client);
 #endif
