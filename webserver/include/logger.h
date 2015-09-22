@@ -4,6 +4,7 @@
 #include<stdio.h>
 #include <stdlib.h>
 #include<string.h>    //strlen
+#include<arpa/inet.h> //inet_addr
 #include <errno.h>
 #include <unistd.h> //read and write
 #include <syslog.h>

@@ -6,6 +6,10 @@
 #include<string.h>    //strlen
 #include <limits.h> //PATH_MAX
 #include <sys/utsname.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h> 
+#include <arpa/inet.h>
 #include "dateTime.h"
 
 #define BUFFERSIZE 4096
@@ -15,18 +19,19 @@
 #define SIZEOFDATETIMELOG 40
 
 typedef struct {
+	char *extension;
+	char *filetype;
+} FileExtensions;
+
+typedef struct {
 	int port;
 	char* configurationFile;
 	char* rootDirectory;
 	char* handlingMethod;
 	char* customLog;
 	char* nodeName;
+	FileExtensions fileSupport[11]; 
 } ServerConfigurations;
-
-typedef struct {
-	char *extension;
-	char *filetype;
-} FileExtensions;
 
 typedef struct {
 	int http_status,keep_alive;
@@ -37,7 +42,7 @@ typedef struct {
 	char* filePath;
 	char* fileType;
 	char lastModified[SIZEOFDATETIMEGMT];
-	char* IPAddress;
+	char IPAddress[INET_ADDRSTRLEN];
 	
 } HTTPResponse;
 typedef struct {
@@ -56,22 +61,23 @@ typedef struct {
 //global variables---------------------------------------------------
 #ifdef SERVER
 
-	ServerConfigurations sc;
+	ServerConfigurations sc={
+		.fileSupport= { 
+			{"html","text/html" }, 
+			{"htm", "text/html" },  
+			{"gif", "image/gif" },  
+			{"jpg", "image/jpg" }, 
+			{"jpeg","image/jpeg"},
+			{"png", "image/png" },  
+			{"ico", "image/ico" },  
+			{"zip", "image/zip" },  
+			{"gz",  "image/gz"  },  
+			{"tar", "image/tar" },  
+			{0,0} }
+	};
 	char dateTimeGMT[SIZEOFDATETIMEGMT];
 	char dateTimeCLF[SIZEOFDATETIMECLF];
 	char dateTimeLog[SIZEOFDATETIMELOG];
-	FileExtensions fileSupport [] = { 
-		{"html","text/html" }, 
-		{"htm", "text/html" },  
-		{"gif", "image/gif" },  
-		{"jpg", "image/jpg" }, 
-		{"jpeg","image/jpeg"},
-		{"png", "image/png" },  
-		{"ico", "image/ico" },  
-		{"zip", "image/zip" },  
-		{"gz",  "image/gz"  },  
-		{"tar", "image/tar" },  
-		{0,0} };
 #else
 	//global variables created in SERVER file
 	//this is a linker to global variables

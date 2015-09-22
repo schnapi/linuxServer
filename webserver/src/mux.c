@@ -3,33 +3,30 @@
 
 int mux(int listen_sd)
 {
-  int    len, rc = 1;
-  int    new_sd = -1;
+//we need this to get client ip address
+	struct sockaddr_in client;
+	int c = sizeof(struct sockaddr_in);
+  int    rc = 1;
+  int    clientSocket = -1;
   int    end_server = FALSE, compress_array = FALSE;
   int    close_conn;
-  char   buffer[80];
+  //time in miliseconds
   int    timeout;
+  //poll of sockets
   struct pollfd fds[200];
-  //nfds: number of socket file descriptors
+  Client clients[200];
+  //nfds: number of file descriptors sockets
   int    nfds = 1, current_size = 0, i, j;
 
-
-  /*************************************************************/
-  /* Initialize the pollfd structure                           */
-  /*************************************************************/
+  //initialize the pollfd structure
   memset(fds, 0 , sizeof(fds));
 
-  /*************************************************************/
-  /* Set up the initial listening socket                        */
-  /*************************************************************/
+	//set initial listening socket 
   fds[0].fd = listen_sd;
-  fds[0].events = POLLIN;
+  fds[0].events = POLLIN | POLLOUT; //POLLIN data to read, POLLOUT - write...
   /*************************************************************/
-  /* Initialize the timeout to 3 minutes. If no                */
-  /* activity after 3 minutes this program will end.           */
-  /* timeout value is based on milliseconds.                   */
-  /*************************************************************/
-  timeout = (3 * 60 * 1000);
+  
+  timeout = 30000; //wait max 3 seconds if no response close connection
 
   /*************************************************************/
   /* Loop waiting for incoming connects or for incoming data   */
@@ -62,10 +59,7 @@ int mux(int listen_sd)
     }
 
 
-    /***********************************************************/
-    /* One or more descriptors are readable.  Need to          */
-    /* determine which ones they are.                          */
-    /***********************************************************/
+    //we need to find which descriptor is readable  
     current_size = nfds;
     for (i = 0; i < current_size; i++)
     {
@@ -76,11 +70,8 @@ int mux(int listen_sd)
       /*********************************************************/
       if(fds[i].revents == 0)
         continue;
-
-      /*********************************************************/
-      /* If revents is not POLLIN, it's an unexpected result,  */
-      /* log and end the server.                               */
-      /*********************************************************/
+		
+      //If revents is not POLLIN or POLLOUT then it is an unexpected result
       if(fds[i].revents != POLLIN)
       {
         printf("  Error! revents = %d\n", fds[i].revents);
@@ -109,8 +100,8 @@ int mux(int listen_sd)
           /* failure on accept will cause us to end the        */
           /* server.                                           */
           /*****************************************************/
-          new_sd = accept(listen_sd, NULL, NULL);
-          if (new_sd < 0)
+          clientSocket = accept(listen_sd, (struct sockaddr *)&client, (socklen_t*)&c);
+          if (clientSocket < 0)
           {
             if (errno != EWOULDBLOCK)
             {
@@ -119,13 +110,17 @@ int mux(int listen_sd)
             }
             break;
           }
+          
+          //set client ip address
+		inet_ntop(AF_INET, &(client.sin_addr), clients[i-1].httpRes.IPAddress, INET_ADDRSTRLEN);
+          printf("test: %s\n",clients[i-1].httpRes.IPAddress);
 
           /*****************************************************/
           /* Add the new incoming connection to the            */
           /* pollfd structure                                  */
           /*****************************************************/
-          printf("  New incoming connection - %d\n", new_sd);
-          fds[nfds].fd = new_sd;
+          printf("  New incoming connection - %d\n", clientSocket);
+          fds[nfds].fd = clientSocket;
           fds[nfds].events = POLLIN;
           nfds++;
 
@@ -133,7 +128,7 @@ int mux(int listen_sd)
           /* Loop back up and accept another incoming          */
           /* connection                                        */
           /*****************************************************/
-        } while (new_sd != -1);
+        } while (clientSocket != -1);
       }
 
       /*********************************************************/
@@ -158,10 +153,11 @@ int mux(int listen_sd)
           /* failure occurs, we will close the                 */
           /* connection.                                       */
           /*****************************************************/
-          rc = recv(fds[i].fd, buffer, sizeof(buffer), 0);
-          if (rc < 0)
+          if((rc = recv(fds[i].fd, clients[i-1].httpReq.message, 10000, 0)) < 0)
           {
-            if (errno != EWOULDBLOCK)
+          	//if reads fail, but if there is no data, it returns EWOULDBLOCK 
+          	//check them both
+            if (errno != EWOULDBLOCK || errno != EAGAIN)
             {
               perror("  recv() failed");
               close_conn = TRUE;
@@ -175,27 +171,17 @@ int mux(int listen_sd)
           /*****************************************************/
           if (rc == 0)
           {
+          	loggerServer(LOG_NOTICE,"Connection closed", "", clients[i-1].httpRes.IPAddress);
             printf("  Connection closed\n");
             close_conn = TRUE;
             break;
           }
-
-          /*****************************************************/
-          /* Data was received                                 */
-          /*****************************************************/
-          len = rc;
-          printf("  %d bytes received\n", len);
-
-          /*****************************************************/
-          /* Echo the data back to the client                  */
-          /*****************************************************/
-          rc = send(fds[i].fd, buffer, len, 0);
-          if (rc < 0)
-          {
-            perror("  send() failed");
-            close_conn = TRUE;
-            break;
-          }
+		    if(parseMessageSendResponse(fds[i].fd,&clients[i-1])<0)
+			{
+				close(fds[i].fd);
+            	close_conn = TRUE;
+				break;
+			}
 
         } while(TRUE);
 

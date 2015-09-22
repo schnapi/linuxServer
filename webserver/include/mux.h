@@ -11,6 +11,9 @@
 #include <errno.h>
 #include <string.h> /* memset */
 #include <unistd.h> /* close */
+#include "utilityHTTP.h"
+#include "logger.h"
+#include "parse.h"
 
 #define TRUE             1
 #define FALSE            0
