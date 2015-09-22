@@ -84,19 +84,20 @@ int main(int argc , char *argv[])
 		inet_ntop(AF_INET, &(client.sin_addr), ipAddress, INET_ADDRSTRLEN);
 		loggerServer(LOG_NOTICE,"Connection accepted","",ipAddress);
 		if(!strncmp(sc.handlingMethod,"thread",6)) {
-			pthread_t sniffer_thread;
+			pthread_t clientThread;
 			clientSocketP = malloc(1);
 			clientSocketP->IpAddress = ipAddress;
 			clientSocketP->socket = clientSocket;
-			
-			if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) clientSocketP) < 0)
+			//connection_handler function must return void* and take a single void* parameter
+			// NULL means that the thread is created with default attributes
+			if( pthread_create( &clientThread , NULL ,  connection_handler , (void*) clientSocketP) < 0)
 			{
 				loggerServer(LOG_ERR,"could not create thread","",ipAddress);
 				return 1;
 			}
 			 
-			//Now join the thread , so that we dont terminate before the thread
-			pthread_join( sniffer_thread , NULL);
+			//do not join thread because we would have to wait this thread
+/*			pthread_join( clientThread , NULL);*/
 			loggerServer(LOG_NOTICE,"Handler assigned","",ipAddress);
 		}
 		else if(!strncmp(sc.handlingMethod,"fork",4)) {
@@ -198,13 +199,13 @@ void *connection_handler(void *mySocket)
     ClientSocketP* clientSocketP=(ClientSocketP*)mySocket;
     //Get the socket descriptor
     int sock = clientSocketP->socket;
-    int read_size;
+    int readSize=0;
     Client client;
     client.httpRes.fileType = NULL;
 	client.httpRes.IPAddress = clientSocketP->IpAddress;
 	
     //Receive a message from client
-    while( (read_size = recv(sock , client.httpReq.message , 10000 , 0)) > 0 )
+    while( (readSize = recv(sock , client.httpReq.message , 10000 , 0)) > 0 )
     {
         //Send the message back to client
 		const char* p = &client.httpReq.message[0];
@@ -302,12 +303,12 @@ void *connection_handler(void *mySocket)
 		}
     }
      
-    if(read_size == 0)
+    if(readSize == 0)
     {
 		loggerServer(LOG_NOTICE,"Client disconnected","",client.httpRes.IPAddress);
         fflush(stdout); //print everything in the stdout buffer
     }
-    else if(read_size == -1)
+    else if(readSize == -1)
     {
 		loggerServer(LOG_ERR,"Recv failer","",client.httpRes.IPAddress);
     }

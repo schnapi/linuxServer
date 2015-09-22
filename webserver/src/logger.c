@@ -124,6 +124,7 @@ void loggerClient(int socket,int method, Client *client, char *s1, char *s2/*, c
 	//write header and then content
 	write(socket,client->httpRes.buffer,strlen(client->httpRes.buffer));
 	write(socket,content,client->httpRes.contentLength);
+	
 	loggerSuccess(method, client);
 	//close the socket due an error occurred
 	close(socket);
