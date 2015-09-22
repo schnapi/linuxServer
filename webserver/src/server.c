@@ -7,17 +7,19 @@
 #include <syslog.h>
  
 #include<pthread.h> //for threading , link with lpthread
+#include <fcntl.h> //for multiplexing
 #include <limits.h> //PATH_MAX
  
 #define SERVER
 #include "../include/utilityHTTP.h"
 #include "../include/utilityManageFiles.h"
 #include "../include/logger.h"
+#include "../include/mux.h"
 
 
 /*check the tasks file*/
 
-void *connection_handler(void *);
+void *connection_handler(void *); //pthread
 
 typedef struct {
 	int socket;
@@ -27,6 +29,7 @@ typedef struct {
 int main(int argc , char *argv[])
 {     
 	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
+	sc.handlingMethod = "mux";
 
 	//(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
 	//sc.customLog = "log.log";
@@ -41,9 +44,10 @@ int main(int argc , char *argv[])
     //Create a new socket
 	//Address Family - AF_INET (this is IP version 4) Type - SOCK_STREAM (this means connection oriented TCP protocol, SOCK_DGRAM is for UDP protocol) Protocol - 0 [ or IPPROTO_IP This is IP protocol]
     int mySocket = socket(AF_INET, SOCK_STREAM, 0);
-    if(mySocket == -1)
+    if(mySocket < 0)
     {
 		loggerServer(LOG_ERR,"Could not create a socket","",NULL);
+		return 1;
     }
      
     struct sockaddr_in server , client;
@@ -54,20 +58,33 @@ int main(int argc , char *argv[])
     
 	int enable = 1; //enable options - nonzero
 	//SO_REUSEADDR - reuse of local address
-	if ( setsockopt(mySocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) == -1 )
+	if ( setsockopt(mySocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0 )
 	{
 		loggerServer(LOG_ERR,"setsockopt","",NULL);
+    	close(mySocket);
+    	return 1;
 	}
+    
+    //Synchronous I/O Multiplexing - set socket to be non-blocking
+    if(!strncmp(sc.handlingMethod,"mux",3)){
+		fcntl(mySocket, F_SETFL, O_NONBLOCK);
+    }
+    
     //Bind a socket - listen to connections that are comming 
     if( bind(mySocket,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
 		loggerServer(LOG_ERR,"bind failed","",NULL);
+    	close(mySocket);
         return 1;
     }
 	loggerServer(LOG_NOTICE,"bind done","",NULL);
      
     //http://pubs.opengroup.org/onlinepubs/9699919799/functions/listen.html
-    listen(mySocket , 3);
+    if(listen(mySocket , 32)<0) {
+		loggerServer(LOG_ERR,"listen failed","",NULL);
+    	close(mySocket);
+        return 1;
+    }
      
     //Accept and incoming connection
 	asprintf(&number,"%d", sc.port);
@@ -75,8 +92,15 @@ int main(int argc , char *argv[])
 	free(number);
 	loggerServer(LOG_NOTICE,"Chosen handling method is:",sc.handlingMethod,NULL);
 	loggerServer(LOG_DEBUG,"www root directory is:",sc.rootDirectory,NULL);
+	
+    //mux
+    if(!strncmp(sc.handlingMethod,"mux",3)) {
+    	return mux(mySocket);
+    }
+    
     int c = sizeof(struct sockaddr_in), clientSocket;
     ClientSocketP *clientSocketP;
+    //this could be a problem with accept if there is a lot of clients - bbetter choice is synchronous I/O multiplexing
     while( (clientSocket = accept(mySocket, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
     	//get ip
@@ -204,7 +228,7 @@ void *connection_handler(void *mySocket)
     client.httpRes.fileType = NULL;
 	client.httpRes.IPAddress = clientSocketP->IpAddress;
 	
-    //Receive a message from client
+    //Receive a message from client TCP, recvfrom is for udp
     while( (readSize = recv(sock , client.httpReq.message , 10000 , 0)) > 0 )
     {
         //Send the message back to client
