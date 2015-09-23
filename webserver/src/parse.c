@@ -56,8 +56,6 @@ int validateURL(int sock,Client *client){
 	}
 	//file extension support
 	int uriLength=strlen(client->httpReq.uri),extensionLength;
-	printf("test: %d\n",uriLength);
-	printf("test: %s\n",client->httpReq.uri);
 	int i=0;
 	for(i=0;sc.fileSupport[i].extension != 0;i++) {
 		extensionLength = strlen(sc.fileSupport[i].extension);
@@ -69,6 +67,8 @@ int validateURL(int sock,Client *client){
 			return 0;
 		}
 	}
+	//no extension support
+	loggerClient(sock,FORBIDDEN,client, "Read or search permission was denied for a component of the path prefix.",client->httpRes.filePath);
 	return -1;
 }
 

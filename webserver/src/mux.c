@@ -23,10 +23,10 @@ int mux(int serverSocket)
 
 	while (endServer==FALSE)
 	{
-		printf("Waiting on clients.\n");
+/*		printf("Waiting on clients.\n");*/
 		//poll blocks and wait for clients
 		if(poll(fds, nfds, -1)<0) {
-			perror("Poll function failed");
+			loggerServer(LOG_ERR,"Poll function failed","",NULL);
 			break;
 		}
 
@@ -41,9 +41,10 @@ int mux(int serverSocket)
 			//If revents is not ready to read data then it is an unexpected result
 			if(fds[i].revents!=POLLIN)
 			{
-					printf("Error! revents=%d\n", fds[i].revents);
-					endServer=TRUE;
-					break;
+				loggerServer(LOG_ERR,"Error! revents","",NULL);
+/*				printf("Error! revents=%d\n", fds[i].revents);*/
+				endServer=TRUE;
+				break;
 			}
 			//if server descriptor is readable
 			if (fds[i].fd==serverSocket)
@@ -74,7 +75,6 @@ int mux(int serverSocket)
 						//add client in queue
 						fds[nfds].fd=acceptedSocket;
 						fds[nfds].events=POLLIN; //ready to read data, response is in revents flag
-					printf("ac: %d\n",fds[nfds].fd);
 						nfds++;
 					} while (acceptedSocket!=-1);
 			}
@@ -85,13 +85,9 @@ int mux(int serverSocket)
 				close_conn=FALSE;
 				while(TRUE)
 				{
-					printf("z: %d\n",fds[i].fd);
-					printf("z: %d\n",errno);
 					//if receive fails
 					if((readSize=recv(fds[i].fd, clients[i-1].httpReq.message, 10000, 0)) < 0)
 					{
-					printf("test: %d\n",fds[i].fd);
-					printf("test: %d\n",errno);
 						//if receive fail, but if there is no data, it returns EWOULDBLOCK
 						if (errno!=EWOULDBLOCK)
 						{

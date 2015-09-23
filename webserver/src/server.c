@@ -30,7 +30,7 @@ typedef struct {
 int main(int argc , char *argv[])
 {     
 	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
-/*	sc.handlingMethod = "mux";*/
+	sc.handlingMethod = "mux";
 
 	//(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
 	sc.customLog = "log";
@@ -74,7 +74,7 @@ int main(int argc , char *argv[])
 	//Bind a socket - listen to connections that are comming 
 	if( bind(mySocket,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
-	loggerServer(LOG_ERR,"bind failed","",NULL);
+		loggerServer(LOG_ERR,"bind failed","",NULL);
 		close(mySocket);
 		  return 1;
 	}
