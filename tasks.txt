@@ -4,7 +4,7 @@
 
 
 
-open tasks: 2.4 Concurrent Request Handling // working on mux(using poll)
+open tasks:
 _______________________________________________________________________________________________________________________
 tasks to be done:
 
@@ -20,7 +20,7 @@ almost done or done tasks:
 2.1 Project Structure
 2.2 HTTP 1.0
 2.3 HTML 4.0
-2.4 Concurrent Request Handling // just threading is done, we need at least two methods
+2.4 Concurrent Request Handling // threading and mux is done, we can have all four methods
 2.7 URL Validation // we use realpath function
 2.9 Configuration File // ServerConfigurations sc is global variable and structure in utilityHTTP.c file 
 2.11 Logging // almost done, check again when the project is going to be done

@@ -18,7 +18,7 @@
 #define INTERNALSERVERERROR 500
 #define NOTIMPLEMENTED 501
 
-void writeToLogFile(char* filePath, char *logMessage);
+void writeToLogFile(char* filePath, char *logMessage,int error);
 int checkErrno(int socket, Client *client);
 void loggerClient(int socket,int method,Client *client, char *s1, char *s2);
 void loggerServer(int level,char *s1,char *s2,char* clientIp);

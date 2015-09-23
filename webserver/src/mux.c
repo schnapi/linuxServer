@@ -1,240 +1,163 @@
-
 #include "../include/mux.h"
 
-int mux(int listen_sd)
+int mux(int serverSocket)
 {
-//we need this to get client ip address
+	//we need this to get client ip address
 	struct sockaddr_in client;
-	int c = sizeof(struct sockaddr_in);
-  int    rc = 1;
-  int    clientSocket = -1;
-  int    end_server = FALSE, compress_array = FALSE;
-  int    close_conn;
-  //time in miliseconds
-  int    timeout;
-  //poll of sockets
-  struct pollfd fds[200];
-  Client clients[200];
-  //nfds: number of file descriptors sockets
-  int    nfds = 1, current_size = 0, i, j;
+	int c=sizeof(struct sockaddr_in);
+	
+	int acceptedSocket, endServer, squeezeArray,close_conn; // all is 0 or FALSE
+	//poll of sockets
+	struct pollfd fds[200];
+	// array of clients foreach file descriptor
+	Client clients[200];
+	//nfds: current number of file descriptors sockets
+	int nfds=1, currentSize, i, j, readSize; //i,j indexes for loops, readSize for recv function
 
-  //initialize the pollfd structure
-  memset(fds, 0 , sizeof(fds));
+	//initialize the pollfd structure
+	memset(fds, 0 , sizeof(fds));
 
 	//set initial listening socket 
-  fds[0].fd = listen_sd;
-  fds[0].events = POLLIN | POLLOUT; //POLLIN data to read, POLLOUT - write...
-  /*************************************************************/
-  
-  timeout = 30000; //wait max 3 seconds if no response close connection
+	fds[0].fd=serverSocket;
+	fds[0].events=POLLIN; //POLLIN data to read without blocking
 
-  /*************************************************************/
-  /* Loop waiting for incoming connects or for incoming data   */
-  /* on any of the connected sockets.                          */
-  /*************************************************************/
-  do
-  {
-    /***********************************************************/
-    /* Call poll() and wait 3 minutes for it to complete.      */
-    /***********************************************************/
-    printf("Waiting on poll()...\n");
-    rc = poll(fds, nfds, timeout);
+	while (endServer==FALSE)
+	{
+		printf("Waiting on clients.\n");
+		//poll blocks and wait for clients
+		if(poll(fds, nfds, -1)<0) {
+			perror("Poll function failed");
+			break;
+		}
 
-    /***********************************************************/
-    /* Check to see if the poll call failed.                   */
-    /***********************************************************/
-    if (rc < 0)
-    {
-      perror("  poll() failed");
-      break;
-    }
-
-    /***********************************************************/
-    /* Check to see if the 3 minute time out expired.          */
-    /***********************************************************/
-    if (rc == 0)
-    {
-      printf("  poll() timed out.  End program.\n");
-      break;
-    }
-
-
-    //we need to find which descriptor is readable  
-    current_size = nfds;
-    for (i = 0; i < current_size; i++)
-    {
-      /*********************************************************/
-      /* Loop through to find the descriptors that returned    */
-      /* POLLIN and determine whether it's the listening       */
-      /* or the active connection.                             */
-      /*********************************************************/
-      if(fds[i].revents == 0)
-        continue;
-		
-      //If revents is not POLLIN or POLLOUT then it is an unexpected result
-      if(fds[i].revents != POLLIN)
-      {
-        printf("  Error! revents = %d\n", fds[i].revents);
-        end_server = TRUE;
-        break;
-
-      }
-      if (fds[i].fd == listen_sd)
-      {
-        /*******************************************************/
-        /* Listening descriptor is readable.                   */
-        /*******************************************************/
-        printf("  Listening socket is readable\n");
-
-        /*******************************************************/
-        /* Accept all incoming connections that are            */
-        /* queued up on the listening socket before we         */
-        /* loop back and call poll again.                      */
-        /*******************************************************/
-        do
-        {
-          /*****************************************************/
-          /* Accept each incoming connection. If               */
-          /* accept fails with EWOULDBLOCK, then we            */
-          /* have accepted all of them. Any other              */
-          /* failure on accept will cause us to end the        */
-          /* server.                                           */
-          /*****************************************************/
-          clientSocket = accept(listen_sd, (struct sockaddr *)&client, (socklen_t*)&c);
-          if (clientSocket < 0)
-          {
-            if (errno != EWOULDBLOCK)
-            {
-              perror("  accept() failed");
-              end_server = TRUE;
-            }
-            break;
-          }
-          
-          //set client ip address
-		inet_ntop(AF_INET, &(client.sin_addr), clients[i-1].httpRes.IPAddress, INET_ADDRSTRLEN);
-          printf("test: %s\n",clients[i-1].httpRes.IPAddress);
-
-          /*****************************************************/
-          /* Add the new incoming connection to the            */
-          /* pollfd structure                                  */
-          /*****************************************************/
-          printf("  New incoming connection - %d\n", clientSocket);
-          fds[nfds].fd = clientSocket;
-          fds[nfds].events = POLLIN;
-          nfds++;
-
-          /*****************************************************/
-          /* Loop back up and accept another incoming          */
-          /* connection                                        */
-          /*****************************************************/
-        } while (clientSocket != -1);
-      }
-
-      /*********************************************************/
-      /* This is not the listening socket, therefore an        */
-      /* existing connection must be readable                  */
-      /*********************************************************/
-
-      else
-      {
-        printf("  Descriptor %d is readable\n", fds[i].fd);
-        close_conn = FALSE;
-        /*******************************************************/
-        /* Receive all incoming data on this socket            */
-        /* before we loop back and call poll again.            */
-        /*******************************************************/
-
-        do
-        {
-          /*****************************************************/
-          /* Receive data on this connection until the         */
-          /* recv fails with EWOULDBLOCK. If any other         */
-          /* failure occurs, we will close the                 */
-          /* connection.                                       */
-          /*****************************************************/
-          if((rc = recv(fds[i].fd, clients[i-1].httpReq.message, 10000, 0)) < 0)
-          {
-          	//if reads fail, but if there is no data, it returns EWOULDBLOCK 
-          	//check them both
-            if (errno != EWOULDBLOCK || errno != EAGAIN)
-            {
-              perror("  recv() failed");
-              close_conn = TRUE;
-            }
-            break;
-          }
-
-          /*****************************************************/
-          /* Check to see if the connection has been           */
-          /* closed by the client                              */
-          /*****************************************************/
-          if (rc == 0)
-          {
-          	loggerServer(LOG_NOTICE,"Connection closed", "", clients[i-1].httpRes.IPAddress);
-            printf("  Connection closed\n");
-            close_conn = TRUE;
-            break;
-          }
-		    if(parseMessageSendResponse(fds[i].fd,&clients[i-1])<0)
+		//we need to find which descriptor is readable
+		currentSize=nfds;
+		for (i=0; i < currentSize; i++)
+		{
+			//this file descriptor is not ready yet
+			if(fds[i].revents==0)
+				continue;
+	
+			//If revents is not ready to read data then it is an unexpected result
+			if(fds[i].revents!=POLLIN)
 			{
-				close(fds[i].fd);
-            	close_conn = TRUE;
-				break;
+					printf("Error! revents=%d\n", fds[i].revents);
+					endServer=TRUE;
+					break;
 			}
+			//if server descriptor is readable
+			if (fds[i].fd==serverSocket)
+			{
+			 		printf("Listening socket is readable\n");
 
-        } while(TRUE);
+					//accept all connections that are in queue and send data
+					do
+					{
+						//accept connections
+						acceptedSocket=accept(serverSocket, (struct sockaddr *)&client, (socklen_t*)&c);
+						//if accept fails, try again later or end server
+						if (acceptedSocket < 0)
+						{
+							if (errno!=EWOULDBLOCK)
+							{
+								loggerServer(LOG_ERR,"Accept failed","",NULL);
+								endServer=TRUE;
+							}
+							//if there is no clients anymore break and wait on poll
+							break;
+						}
+			 
+						//set client ip address
+						inet_ntop(AF_INET, &(client.sin_addr), clients[i].httpRes.IPAddress, INET_ADDRSTRLEN);
 
-        /*******************************************************/
-        /* If the close_conn flag was turned on, we need       */
-        /* to clean up this active connection. This            */
-        /* clean up process includes removing the              */
-        /* descriptor.                                         */
-        /*******************************************************/
-        if (close_conn)
-        {
-          close(fds[i].fd);
-          fds[i].fd = -1;
-          compress_array = TRUE;
-        }
+						loggerServer(LOG_NOTICE,"Connection accepted","", clients[i].httpRes.IPAddress);
+						//add client in queue
+						fds[nfds].fd=acceptedSocket;
+						fds[nfds].events=POLLIN; //ready to read data, response is in revents flag
+					printf("ac: %d\n",fds[nfds].fd);
+						nfds++;
+					} while (acceptedSocket!=-1);
+			}
+			//send data to clients
+			else
+			{
+				loggerServer(LOG_NOTICE,"Handler assigned","", clients[i-1].httpRes.IPAddress);
+				close_conn=FALSE;
+				while(TRUE)
+				{
+					printf("z: %d\n",fds[i].fd);
+					printf("z: %d\n",errno);
+					//if receive fails
+					if((readSize=recv(fds[i].fd, clients[i-1].httpReq.message, 10000, 0)) < 0)
+					{
+					printf("test: %d\n",fds[i].fd);
+					printf("test: %d\n",errno);
+						//if receive fail, but if there is no data, it returns EWOULDBLOCK
+						if (errno!=EWOULDBLOCK)
+						{
+							loggerServer(LOG_ERR,"Recv failed","",clients[i-1].httpRes.IPAddress);
+							close_conn=TRUE;
+						}
+						break;
+					}
 
+					//if client has closed connection
+					if (readSize==0)
+					{
+						close_conn=TRUE;
+						break;
+					}
+					//parse received data
+					parseMessageSendResponse(fds[i].fd,&clients[i-1], readSize);
+					if(clients[i-1].httpRes.closeConnection == 1)
+					{
+						close(fds[i].fd);
+						close_conn=TRUE;
+						break;
+					}
+				}
 
-      }  /* End of existing connection is readable             */
-    } /* End of loop through pollable descriptors              */
+				//close connection and set fd to -1 that we can remove this fd from array
+				if (close_conn)
+				{
+					close(fds[i].fd);
+					fds[i].fd=-1;
+					//we want to squeeze array
+					squeezeArray=TRUE;
+				}
+			}
+		}
+		
+		if (squeezeArray)
+		{
+			for (i=0; i < nfds; i++)
+			{
+				// if is closed socket
+				if (fds[i].fd==-1)
+				{
+					//move all fd and clients on the rigth to the left
+					for(j=i; j < nfds; j++)
+					{
+						fds[j].fd=fds[j+1].fd;
+						clients[j]=clients[j+1];
+					}
+					//move one field back
+					i--;
+					//and decrease number of open sockets
+					nfds--;
+				}
+			}
+			squeezeArray=FALSE;
+		}
+	}
 
-    /***********************************************************/
-    /* If the compress_array flag was turned on, we need       */
-    /* to squeeze together the array and decrement the number  */
-    /* of file descriptors. We do not need to move back the    */
-    /* events and revents fields because the events will always*/
-    /* be POLLIN in this case, and revents is output.          */
-    /***********************************************************/
-    if (compress_array)
-    {
-      compress_array = FALSE;
-      for (i = 0; i < nfds; i++)
-      {
-        if (fds[i].fd == -1)
-        {
-          for(j = i; j < nfds; j++)
-          {
-            fds[j].fd = fds[j+1].fd;
-          }
-          i--;
-          nfds--;
-        }
-      }
-    }
-
-  } while (end_server == FALSE); /* End of serving running.    */
-
-  /*************************************************************/
-  /* Clean up all of the sockets that are open                 */
-  /*************************************************************/
-  for (i = 0; i < nfds; i++)
-  {
-    if(fds[i].fd >= 0)
-      close(fds[i].fd);
-  }
-  return 0;
+	// close all the sockets that are open 
+	for (i=0; i < nfds; i++)
+	{
+		if(fds[i].fd>=0){
+			close(fds[i].fd);
+		}
+	}
+	
+	return 0;
 }

@@ -34,9 +34,9 @@ typedef struct {
 } ServerConfigurations;
 
 typedef struct {
-	int http_status,keep_alive;
 	long contentLength;
 	short simple;
+	short closeConnection;
 	char buffer[BUFFERSIZE]; //4kB best size for sending data
 	char* statusCode;
 	char* filePath;
@@ -50,7 +50,6 @@ typedef struct {
 	char* method;
 	char uri[PATH_MAX];
 	char httpVersion[8];
-	char host[10000];
 } HTTPRequest;
 
 typedef struct {

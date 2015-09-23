@@ -1,14 +1,14 @@
 #include "../include/logger.h"
 
 int checkErrno(int socket, Client *client){
-		printf("test1: %d\n",EACCES);
-		printf("test2: %d\n",EINVAL);
-		printf("test3: %d\n",EIO);
-		printf("test4: %d\n",ELOOP);
-		printf("test5: %d\n",ENAMETOOLONG);
-		printf("test6: %d\n",ENOMEM);
-		printf("test7: %d\n",ENOENT);
-		printf("test8: %d\n",ENOTDIR);
+/*		printf("test1: %d\n",EACCES);*/
+/*		printf("test2: %d\n",EINVAL);*/
+/*		printf("test3: %d\n",EIO);*/
+/*		printf("test4: %d\n",ELOOP);*/
+/*		printf("test5: %d\n",ENAMETOOLONG);*/
+/*		printf("test6: %d\n",ENOMEM);*/
+/*		printf("test7: %d\n",ENOENT);*/
+/*		printf("test8: %d\n",ENOTDIR);*/
 	printf("Errno is: %d\n",errno);
 	switch(errno) {
 		case EACCES:
@@ -39,13 +39,23 @@ int checkErrno(int socket, Client *client){
 	return errno;
 }
 
-void writeToLogFile(char* filePath, char *logMessage) {
+void writeToLogFile(char* filePath, char *logMessage,int error) {
+	char* path;
+	asprintf(&path,"%s.log", filePath);	
 	FILE * fp; // file pointer
 	//a-append data
 	// if file not exist create it
 	if((fp = fopen(filePath, "a")) != NULL) {
 		fputs(logMessage,fp);    
 		fclose(fp);
+	}
+	//here are errors and important notifications
+	if(error){
+		asprintf(&path,"%s.err", filePath);	
+		if((fp = fopen(filePath, "a")) != NULL) {
+			fputs(logMessage,fp);    
+			fclose(fp);
+		}
 	}
 }
 void loggerServer(int level,char *s1,char *s2,char* clientIp) {
@@ -84,7 +94,11 @@ void loggerServer(int level,char *s1,char *s2,char* clientIp) {
 		syslog (level, "%s", logMessage);
 	}
 	else {
-		writeToLogFile(sc.customLog, logMessage);
+	//if error has occured, or any important notification, look above codes from syslog
+		if(level<=3)
+			writeToLogFile(sc.customLog, logMessage,1);
+		else
+			writeToLogFile(sc.customLog, logMessage,0);
 	}
 	free(logMessage);
 }
@@ -124,10 +138,8 @@ void loggerClient(int socket,int method, Client *client, char *s1, char *s2/*, c
 	//write header and then content
 	write(socket,client->httpRes.buffer,strlen(client->httpRes.buffer));
 	write(socket,content,client->httpRes.contentLength);
-	
+	client->httpRes.closeConnection = 1;
 	loggerSuccess(method, client);
-	//close the socket due an error occurred
-	close(socket);
 }
 
 void loggerSuccess(int method, Client *client){
@@ -141,7 +153,7 @@ void loggerSuccess(int method, Client *client){
 		char *logMessage;
 		//creates log message in CLF (Common logFile format)
 		asprintf(&logMessage,"%s - - [%s] \"%s %s %s\" %d %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,method,client->httpRes.contentLength);
-		writeToLogFile(sc.customLog, logMessage);
+		writeToLogFile(sc.customLog, logMessage, 0);
 		//free memory due of use asprintf function
 		free(logMessage);
 	}
