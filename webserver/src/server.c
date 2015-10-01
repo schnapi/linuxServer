@@ -16,11 +16,13 @@
 #include "../include/logger.h"
 #include "../include/mux.h"
 #include "../include/parse.h"
+#include "../include/daemon.h"
 
 
 /*check the tasks file*/
 
 void *connection_handler(void *); //pthread
+extern int already_running(void);
 
 typedef struct {
 	int socket;
@@ -29,12 +31,28 @@ typedef struct {
 
 int main(int argc , char *argv[])
 {     
+	//this is for daemon
+	char *cmd;
+	//if slash character is missing then program name is argv[0]
+	if((cmd=strrchr(argv[0],'/')) == NULL)
+		cmd = argv[0];
+	//increase pointer by one to remove slash
+	else
+		cmd++;
+	
+/*	daemonize(cmd);*/
+/*	if (already_running()) {*/
+/*		syslog(LOG_ERR |  LOG_CONS, "daemon already running");*/
+/*		exit(1);*/
+/*	}*/
+
 	parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
-	sc.handlingMethod = "mux";
+/*	sc.handlingMethod = "mux"; //for testing*/
 
 	//(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
 	sc.customLog = "log";
 	if(sc.customLog==NULL) {
+		//LOG_CONS - output to console, process id, 
 		openlog ("RoSa/1.0", LOG_CONS | LOG_PID, LOG_LOCAL1);
 	}
 	char* number;
@@ -111,6 +129,7 @@ int main(int argc , char *argv[])
 		inet_ntop(AF_INET, &(client.sin_addr), clientSocketP->IpAddress, INET_ADDRSTRLEN);
 		loggerServer(LOG_NOTICE,"Connection accepted","", clientSocketP->IpAddress);
 		clientSocketP->socket = clientSocket;
+		
 		if(!strncmp(sc.handlingMethod,"thread",6)) {
 			//connection_handler function must return void* and take a single void* parameter
 			// NULL means that the thread is created with default attributes
@@ -121,6 +140,8 @@ int main(int argc , char *argv[])
 			}
 			//do not join thread because we would have to wait this thread
 			/*pthread_join( clientThread , NULL);*/
+			//we can detach thread and release some memory
+			pthread_detach(clientThread);
 			loggerServer(LOG_NOTICE,"Handler assigned","",clientSocketP->IpAddress);
 		}
 		else if(!strncmp(sc.handlingMethod,"fork",4)) {

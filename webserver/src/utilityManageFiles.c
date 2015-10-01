@@ -13,8 +13,11 @@ void parseConfigurationFile(ServerConfigurations *sc, char *fileName) {
 	ssize_t read;
 	asprintf(&fileName,"%s/%s",cwd,fileName);
 	stream = fopen(fileName, "r");
-	if (stream == NULL)
-	   exit(EXIT_FAILURE);
+	if (stream == NULL){
+		
+		syslog(LOG_ERR, "cannot open file in utilityManageFiles.c");
+		exit(EXIT_FAILURE);
+	}
 	//reads conf file
 	while ((read = getline(&line, &len, stream)) != -1) {
 
