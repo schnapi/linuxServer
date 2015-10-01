@@ -1,4 +1,3 @@
-#include "../include/utilityHTTP.h"
 #include "../include/utilityCLI.h"
 
 void parseCommandLineOptions(ServerConfigurations *sc, int argc, char* argv[]) {
@@ -18,10 +17,22 @@ void parseCommandLineOptions(ServerConfigurations *sc, int argc, char* argv[]) {
                 sc->port = port;
             }
         } else if (strncmp(argv[i], "-d", 2) == 0) {
-            printf("-d - Run as daemon - Not implemented yet.\n");
-            //TODO
-            //#include "../include/daemon.h"
-            //daemonize(cmd);
+        		//this is for daemon
+						char *programName;
+						//if slash character is missing then program name is argv[0]
+						if((programName=strrchr(argv[0],'/')) == NULL)
+							programName = argv[0];
+						//increase pointer by one to remove slash
+						else
+							programName++;
+
+						daemonize(programName);
+						if (already_running()) {
+							loggerServer(LOG_ERR, "daemon already running", "", NULL);
+							exit(1);
+						}
+						else
+							loggerServer(LOG_NOTICE, "Server RoSa is running like a Daemon", "", NULL);
         } else if (strncmp(argv[i], "-l", 2) == 0) {
             if ((argc - 1) == i) {
                 printf("-l found but filename is missing...\n");

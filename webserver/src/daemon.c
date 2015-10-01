@@ -85,7 +85,6 @@ int lockfile(int fd)
 	return(fcntl(fd, F_SETLK, &fl));
 }
 
-#define LOCKFILE "/home/sandik/Desktop/Programming in Unix environment/lab assignment 2/project/webserver/daemon.pid"
 #define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 
 
@@ -93,10 +92,13 @@ int already_running(void)
 {
 	int		fd;
 	char	buf[16];
+	char* daemonLockFile;
+	
+	asprintf(&daemonLockFile, "%s/daemon.pid", sc.executionDirectory);
 
-	fd = open(LOCKFILE, O_RDWR|O_CREAT, LOCKMODE);
+	fd = open(daemonLockFile, O_RDWR|O_CREAT, LOCKMODE);
 	if (fd < 0) {
-		syslog(LOG_ERR, "can't open %s: %s", LOCKFILE, strerror(errno));
+		loggerServer(LOG_ERR, "can't open", daemonLockFile, NULL);
 		exit(1);
 	}
 	if (lockfile(fd) < 0) {
@@ -104,9 +106,10 @@ int already_running(void)
 			close(fd);
 			return(1);
 		}
-		syslog(LOG_ERR, "can't lock %s: %s", LOCKFILE, strerror(errno));
+		loggerServer(LOG_ERR, "can't lock", daemonLockFile, NULL);
 		exit(1);
 	}
+	free(daemonLockFile);
 	ftruncate(fd, 0);
 	sprintf(buf, "%ld", (long)getpid());
 	write(fd, buf, strlen(buf)+1);

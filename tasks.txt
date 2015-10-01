@@ -11,7 +11,6 @@ tasks to be done:
 2.5 Process Management
 2.6 Command Line Options
 2.8 Client Compatibility
-2.10 Run as Daemon
 2.12 Jail
 
 
@@ -38,4 +37,5 @@ almost done or done tasks:
 2.4 Concurrent Request Handling // threading and mux is done, we can have all four methods
 2.7 URL Validation // we use realpath function
 2.9 Configuration File // ServerConfigurations sc is global variable and structure in utilityHTTP.c file 
+2.10 Run as Daemon
 2.11 Logging // almost done, check again when the project is going to be done

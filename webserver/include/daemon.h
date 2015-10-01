@@ -11,6 +11,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include "utilityHTTP.h"
+#include "logger.h"
 
 void daemonize(const char *cmd);
 int lockfile(int fd);
