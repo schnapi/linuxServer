@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
   parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
   parseCommandLineOptions(&sc, argc, argv);
   
+  
 /*	//this is for daemon*/
 /*	char *programName;*/
 /*	//if slash character is missing then program name is argv[0]*/
@@ -156,6 +157,8 @@ int main(int argc, char *argv[]) {
   if (sc.customLog == NULL) {
       closelog();
   }
+  
+  free(sc.executionDirectory);
 
   return 0;
 }

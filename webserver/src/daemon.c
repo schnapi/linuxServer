@@ -59,6 +59,7 @@ void daemonize(const char *cmd)
 		rl.rlim_max = 1024;
 	for (i = 0; i < rl.rlim_max; i++)
 		close(i);
+/*  loggerServer(LOG_ERR, "test", sc.executionDirectory, NULL);*/
 	/*
 	* Attach file descriptors 0, 1, and 2 to /dev/null.
 	*/
@@ -78,17 +79,21 @@ void daemonize(const char *cmd)
 int lockfile(int fd)
 {
 	struct flock fl;
-	fl.l_type = F_WRLCK;
+	//advisory locking
+	fl.l_type = F_WRLCK; // write lock
 	fl.l_start = 0;
-	fl.l_whence = SEEK_SET;
+	fl.l_whence = SEEK_SET; //for beginning of file is going to start locking (fl.l_start)
 	fl.l_len = 0;
-	return(fcntl(fd, F_SETLK, &fl));
+	fl.l_pid = getpid();
+	int res = fcntl(fd, F_SETLK, &fl);
+/*	syslog (LOG_NOTICE, "Problems: %d", fcntl(fd, F_SETLK, &fl) );*/
+	return res; // if return -1 file is locked
 }
 
 #define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 
 
-int already_running(void)
+int already_running()
 {
 	int		fd;
 	char	buf[16];

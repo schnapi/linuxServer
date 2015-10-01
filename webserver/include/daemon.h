@@ -16,6 +16,6 @@
 
 void daemonize(const char *cmd);
 int lockfile(int fd);
-int already_running(void);
+int already_running();
 
 #endif

@@ -4,8 +4,9 @@ void parseConfigurationFile(ServerConfigurations *sc, char *fileName) {
 	// we get current directory for configuration file
 	char cwd[1024];
 	if (getcwd(cwd, sizeof(cwd)) != NULL) {
-		loggerServer(LOG_NOTICE, "Server’s execution directory dir:", cwd, NULL);
-		sc->executionDirectory = cwd;
+		sc->executionDirectory = (char *) malloc(strlen(cwd));
+		strcat(sc->executionDirectory, cwd);
+		loggerServer(LOG_NOTICE, "Server’s execution directory dir:", sc->executionDirectory, NULL);
 	}
 	else {
 		loggerServer(LOG_ERR, "getcwd() error", "", NULL);

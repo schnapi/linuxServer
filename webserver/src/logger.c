@@ -41,21 +41,25 @@ int checkErrno(int socket, Client *client){
 
 void writeToLogFile(char* filePath, char *logMessage,int error) {
 	char* path;
-	asprintf(&path,"%s.log", filePath);	
+	asprintf(&path,"%s/%s.log",sc.executionDirectory, filePath);	
 	FILE * fp; // file pointer
 	//a-append data
 	// if file not exist create it
-	if((fp = fopen(filePath, "a")) != NULL) {
+	if((fp = fopen(path, "a")) != NULL) {
 		fputs(logMessage,fp);    
 		fclose(fp);
 	}
+	else
+		syslog (LOG_NOTICE, "Problems: %s", sc.executionDirectory);
+	free(path);
 	//here are errors and important notifications
 	if(error){
-		asprintf(&path,"%s.err", filePath);	
-		if((fp = fopen(filePath, "a")) != NULL) {
+		asprintf(&path,"%s/%s.err",sc.executionDirectory, filePath);	
+		if((fp = fopen(path, "a")) != NULL) {
 			fputs(logMessage,fp);    
 			fclose(fp);
 		}
+		free(path);
 	}
 }
 void loggerServer(int level,char *s1,char *s2,char* clientIp) {
@@ -88,7 +92,6 @@ void loggerServer(int level,char *s1,char *s2,char* clientIp) {
 	else {
 		asprintf(&logMessage,"[%s] [%s] [client %s] %s %s\n",dateTimeLog, levelString, clientIp, s1,s2);
 	}
-	
 	//if is syslog	
 	if(sc.customLog==NULL){
 		syslog (level, "%s", logMessage);
