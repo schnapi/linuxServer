@@ -31,6 +31,21 @@ typedef struct {
 } ClientSocketP;
 	
 int main(int argc, char *argv[]) {
+		//this is for daemon
+			char *cmd;
+			//if slash character is missing then program name is argv[0]
+			if((cmd=strrchr(argv[0],'/')) == NULL)
+				cmd = argv[0];
+			//increase pointer by one to remove slash
+			else
+				cmd++;
+	
+		/*	daemonize(cmd);*/
+		/*	if (already_running()) {*/
+		/*		syslog(LOG_ERR |  LOG_CONS, "daemon already running");*/
+		/*		exit(1);*/
+		/*	}*/
+		
     parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
     parseCommandLineOptions(&sc, argc, argv);
     sc.handlingMethod = "mux";
