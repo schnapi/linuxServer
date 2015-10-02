@@ -32,7 +32,7 @@ void parseCommandLineOptions(ServerConfigurations *sc, int argc, char* argv[]) {
 							exit(1);
 						}
 						else
-							loggerServer(LOG_NOTICE, "Server RoSa is running like a Daemon", "", NULL);
+							sc->isDaemon = 1;	
         } else if (strncmp(argv[i], "-l", 2) == 0) {
             if ((argc - 1) == i) {
                 printf("-l found but filename is missing...\n");

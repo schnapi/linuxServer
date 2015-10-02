@@ -13,7 +13,7 @@ void createDaemon(const char *programName)
 	//create new child process
 	if ((pid = fork()) < 0) {
 		perror("can’t fork");
-		exit(0);
+		exit(1);
 	}
 	//child get new process id after parent is closed
 	else if (pid != 0)
@@ -23,12 +23,13 @@ void createDaemon(const char *programName)
 	if(setsid()<0)
 	{
 		perror("can’t create process group");
-		exit(0);
+		exit(1);
 	}
 	
 	//fork and exit parent again, now we are assured that we are disassociated from the terminal
 	if ((pid = fork()) < 0) {
 		perror("can’t fork");
+		exit(1);
 	}
 	else if (pid != 0) /* parent */
 		exit(0);
@@ -55,8 +56,6 @@ void createDaemon(const char *programName)
 	fdOut = dup(0); //copy of old fd //standard output
 	fdErr = dup(0); //standard error
 	
-	//open log file
-	openlog(programName, LOG_CONS, LOG_DAEMON);
 	if (fdIn != 0 || fdOut != 1 || fdErr != 2) {
 		syslog(LOG_ERR, "unexpected problems with file descriptors %d %d %d",fdIn, fdOut, fdErr);
 		exit(1);

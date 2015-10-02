@@ -25,6 +25,7 @@ typedef struct {
 
 typedef struct {
 	int port;
+	int isDaemon;
 	char* configurationFile;
 	char* rootDirectory;
 	char* handlingMethod;

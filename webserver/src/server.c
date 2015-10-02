@@ -33,19 +33,32 @@ typedef struct {
 int main(int argc, char *argv[]) {
 		
   parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
-  parseCommandLineOptions(&sc, argc, argv);
-		
+  sc.customLog = "log";
   sc.handlingMethod = "mux";
+  
+  parseCommandLineOptions(&sc, argc, argv);
+  
+	
 
   //(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
-  sc.customLog = "log";
   if (sc.customLog == NULL) {
+		if(sc.isDaemon == 1){
+			openlog("RoSa/1.0", LOG_CONS | LOG_PID, LOG_DAEMON);
+		}
+		else
       openlog("RoSa/1.0", LOG_CONS | LOG_PID, LOG_LOCAL1);
   }
-  char* number;
+  
+	char *number;
   asprintf(&number, "%d", getuid());
   loggerServer(LOG_NOTICE, "Server RoSa started by User", number, NULL);
   free(number);
+  
+	if(sc.isDaemon == 1){
+		asprintf(&number, "%d", getpid());
+		loggerServer(LOG_NOTICE, "Server RoSa is running like a Daemon, PID: ", number, NULL);
+		free(number);
+	}
 
   //Create a new socket
   //Address Family - AF_INET (this is IP version 4) Type - SOCK_STREAM (this means connection oriented TCP protocol, SOCK_DGRAM is for UDP protocol) Protocol - 0 [ or IPPROTO_IP This is IP protocol]
