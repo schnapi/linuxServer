@@ -1,82 +1,69 @@
 #include "../include/daemon.h"
 
-void daemonize(const char *cmd)
+void createDaemon(const char *programName)
 {
-	int i, fd0, fd1, fd2;
+	int i;
+	int fdIn, fdOut, fdErr;
 	pid_t pid;
-	struct rlimit rl;
-	struct sigaction sa;
-	/*
-	* Clear file creation mask.
-	*/
-	umask(0);
-	/*
-	* Get maximum number of file descriptors.
-	*/
-	if (getrlimit(RLIMIT_NOFILE, &rl) < 0) {
-/*		err_quit("%s: can’t get file limit", cmd);*/
-		perror("can’t get file limit");
-	}
-	/*
-	* Become a session leader to lose controlling TTY.
-	*/
-	if ((pid = fork()) < 0) {
-/*		err_quit("%s: can’t fork", cmd);*/
-		perror("can’t get file limit");
-	}
-	else if (pid != 0) /* parent */
-		exit(0);
-	setsid();
-	/*
-	* Ensure future opens won’t allocate controlling TTYs.
-	*/
-	sa.sa_handler = SIG_IGN;
-	sigemptyset(&sa.sa_mask);
+	struct rlimit resourceLimit;
 	
-	sa.sa_flags = 0;
-	if (sigaction(SIGHUP, &sa, NULL) < 0) {
-/*		err_quit("%s: can’t ignore SIGHUP", cmd);*/
-		perror("can’t ignore SIGHUP");
-	}
+	//set file creation mask to 0
+	umask(0);
+	
+	//create new child process
 	if ((pid = fork()) < 0) {
-/*		err_quit("%s: can’t fork", cmd);*/
+		perror("can’t fork");
+		exit(0);
+	}
+	//child get new process id after parent is closed
+	else if (pid != 0)
+		exit(0);
+	
+	//becomes the leader of new session, of new process group and it is disassociated from the terminal 
+	if(setsid()<0)
+	{
+		perror("can’t create process group");
+		exit(0);
+	}
+	
+	//fork and exit parent again, now we are assured that we are disassociated from the terminal
+	if ((pid = fork()) < 0) {
 		perror("can’t fork");
 	}
 	else if (pid != 0) /* parent */
 		exit(0);
-	/*
-	* Change the current working directory to the root so
-	* we won’t prevent file systems from being unmounted.
-	*/
+	
+	//we have to set currect directory to root directory, otherwise if the parent is on mounted file system we can not unmount this file system...
 	if (chdir("/") < 0) {
-/*		err_quit("%s: can’t change directory to /", cmd);*/
-		perror("can’t change directory to");
+		perror("can not change current directory to home directory");
 	}
-	/*
-	* Close all open file descriptors.
-	*/
-	if (rl.rlim_max == RLIM_INFINITY)
-		rl.rlim_max = 1024;
-	for (i = 0; i < rl.rlim_max; i++)
+	
+	
+	//highest number of file descriptors, save to rlimit structure
+	if (getrlimit(RLIMIT_NOFILE, &resourceLimit) < 0) {
+		perror("can’t get file descriptors limit");
+	}
+	//if RLIM_INFINITY == -1 this means value is larger than can be represented in a 32 bit, ulong
+	if (resourceLimit.rlim_max == RLIM_INFINITY)
+		resourceLimit.rlim_max = 100;
+	// close all file descriptors
+	for (i = 0; i < resourceLimit.rlim_max; i++)
 		close(i);
-/*  loggerServer(LOG_ERR, "test", sc.executionDirectory, NULL);*/
-	/*
-	* Attach file descriptors 0, 1, and 2 to /dev/null.
-	*/
-	fd0 = open("/dev/null", O_RDWR);
-	fd1 = dup(0);
-	fd2 = dup(0);
-	/*
-	* Initialize the log file.
-	*/
-	openlog(cmd, LOG_CONS, LOG_DAEMON);
-	if (fd0 != 0 || fd1 != 1 || fd2 != 2) {
-		syslog(LOG_ERR, "unexpected file descriptors %d %d %d",fd0, fd1, fd2);
+		
+	// set file descriptor to /dev/null
+	fdIn = open("/dev/null", O_RDWR); //standard input
+	fdOut = dup(0); //copy of old fd //standard output
+	fdErr = dup(0); //standard error
+	
+	//open log file
+	openlog(programName, LOG_CONS, LOG_DAEMON);
+	if (fdIn != 0 || fdOut != 1 || fdErr != 2) {
+		syslog(LOG_ERR, "unexpected problems with file descriptors %d %d %d",fdIn, fdOut, fdErr);
 		exit(1);
 	}
 }
 
-int lockfile(int fd)
+int lockFile(int fd)
 {
 	struct flock fl;
 	//advisory locking
@@ -84,39 +71,39 @@ int lockfile(int fd)
 	fl.l_start = 0;
 	fl.l_whence = SEEK_SET; //for beginning of file is going to start locking (fl.l_start)
 	fl.l_len = 0;
-	fl.l_pid = getpid();
 	int res = fcntl(fd, F_SETLK, &fl);
-/*	syslog (LOG_NOTICE, "Problems: %d", fcntl(fd, F_SETLK, &fl) );*/
 	return res; // if return -1 file is locked
 }
 
-#define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
-
-
-int already_running()
+int daemonIsRunning()
 {
 	int		fd;
-	char	buf[16];
+	char	*daemonID;
 	char* daemonLockFile;
 	
 	asprintf(&daemonLockFile, "%s/daemon.pid", sc.executionDirectory);
 
-	fd = open(daemonLockFile, O_RDWR|O_CREAT, LOCKMODE);
+	//open with rw permissions, create, 00700
+	fd = open(daemonLockFile, O_RDWR|O_CREAT, S_IRWXU);
 	if (fd < 0) {
 		loggerServer(LOG_ERR, "can't open", daemonLockFile, NULL);
 		exit(1);
 	}
-	if (lockfile(fd) < 0) {
-		if (errno == EACCES || errno == EAGAIN) {
+	if(lockFile(fd) < 0) {
+		if(errno == EACCES || errno == EAGAIN) {
+			loggerServer(LOG_ERR, "file is locked by another process", "", NULL);
 			close(fd);
-			return(1);
+			return 1;
 		}
 		loggerServer(LOG_ERR, "can't lock", daemonLockFile, NULL);
 		exit(1);
 	}
 	free(daemonLockFile);
+	//we clear the file
 	ftruncate(fd, 0);
-	sprintf(buf, "%ld", (long)getpid());
-	write(fd, buf, strlen(buf)+1);
-	return(0);
+	//cast pid_t to long
+	asprintf(&daemonID, "%ld", (long)getpid());
+	write(fd, daemonID, strlen(daemonID));
+	free(daemonID);
+	return 0;
 }

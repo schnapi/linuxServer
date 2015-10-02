@@ -1,7 +1,6 @@
 #ifndef DAEMON_H
 #define DAEMON_H
 
-#include "apue.h"
 #include <sys/resource.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -14,8 +13,8 @@
 #include "utilityHTTP.h"
 #include "logger.h"
 
-void daemonize(const char *cmd);
+void createDaemon(const char *programName);
 int lockfile(int fd);
-int already_running();
+int daemonIsRunning();
 
 #endif

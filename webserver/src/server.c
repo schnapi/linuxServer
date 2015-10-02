@@ -34,24 +34,6 @@ int main(int argc, char *argv[]) {
 		
   parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
   parseCommandLineOptions(&sc, argc, argv);
-  
-  
-/*	//this is for daemon*/
-/*	char *programName;*/
-/*	//if slash character is missing then program name is argv[0]*/
-/*	if((programName=strrchr(argv[0],'/')) == NULL)*/
-/*		programName = argv[0];*/
-/*	//increase pointer by one to remove slash*/
-/*	else*/
-/*		programName++;*/
-
-/*	daemonize(programName);*/
-/*	if (already_running()) {*/
-/*		loggerServer(LOG_ERR, "daemon already running", "", NULL);*/
-/*		exit(1);*/
-/*	}*/
-/*	else*/
-/*		loggerServer(LOG_NOTICE, "Server RoSa is running like a Daemon", "", NULL);*/
 		
   sc.handlingMethod = "mux";
 

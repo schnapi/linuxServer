@@ -26,8 +26,8 @@ void parseCommandLineOptions(ServerConfigurations *sc, int argc, char* argv[]) {
 						else
 							programName++;
 
-						daemonize(programName);
-						if (already_running()) {
+						createDaemon(programName);
+						if (daemonIsRunning()) {
 							loggerServer(LOG_ERR, "daemon already running", "", NULL);
 							exit(1);
 						}
