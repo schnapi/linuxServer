@@ -28,13 +28,13 @@ extern int already_running(void);
 typedef struct {
     int socket;
     char IpAddress[INET_ADDRSTRLEN];
-} ClientSocketP;
+} ClientSocket;
 	
 int main(int argc, char *argv[]) {
 		
   parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
   sc.customLog = "log";
-  sc.handlingMethod = "mux";
+  sc.handlingMethod = "thread";
   
   parseCommandLineOptions(&sc, argc, argv);
   
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
   }
 
   int c = sizeof (struct sockaddr_in), clientSocket;
-  ClientSocketP *clientSocketP;
+  ClientSocket *clientSocketP;
 
   //this could be a problem with accept if there is a lot of clients - better choice is synchronous I/O multiplexing
   while ((clientSocket = accept(mySocket, (struct sockaddr *) &client, (socklen_t*) & c))) {
@@ -135,6 +135,7 @@ int main(int argc, char *argv[]) {
           //do not join thread because we would have to wait this thread
           /*pthread_join( clientThread , NULL);*/
           loggerServer(LOG_NOTICE, "Handler assigned", "", clientSocketP->IpAddress);
+          pthread_detach(clientThread);
       } else if (!strncmp(sc.handlingMethod, "fork", 4)) {
           puts("Not implemented");
           return 3;
@@ -161,7 +162,7 @@ int main(int argc, char *argv[]) {
 //This will handle connection for each client
 
 void *connection_handler(void *mySocket) {
-  ClientSocketP* clientSocketP = (ClientSocketP*) mySocket;
+  ClientSocket* clientSocketP = (ClientSocket*) mySocket;
   int readSize;
   Client client;
   client.httpRes.fileType = NULL;
@@ -170,11 +171,11 @@ void *connection_handler(void *mySocket) {
   //Receive a message from client TCP, recvfrom is for udp
   while ((readSize = recv(clientSocketP->socket, client.httpReq.message, 10000, 0)) > 0) {
       parseMessageSendResponse(clientSocketP->socket, &client, readSize);
-
-      if (client.httpRes.closeConnection == 1) {
+			
+/*      if (client.httpRes.closeConnection == 1) {*/
           close(clientSocketP->socket);
           break;
-      }
+/*      }*/
   }
 
   if (readSize == 0) {
@@ -186,6 +187,6 @@ void *connection_handler(void *mySocket) {
 
   //Free the socket pointer
   free(mySocket);
-
+  pthread_exit(NULL);
   return 0;
 }

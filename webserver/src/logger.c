@@ -42,12 +42,12 @@ int checkErrno(int socket, Client *client){
 void writeToLogFile(char* filePath, char *logMessage,int error) {
 	char* path;
 	asprintf(&path,"%s/%s.log",sc.executionDirectory, filePath);	
-	FILE * fp; // file pointer
+	int fp; // file pointer
 	//a-append data
 	// if file not exist create it
-	if((fp = fopen(path, "a")) != NULL) {
-		fputs(logMessage,fp);    
-		fclose(fp);
+	if((fp = open(path, O_CREAT| O_WRONLY | O_APPEND,0644)) >= 0) {
+		write(fp,logMessage,strlen(logMessage));   
+		close(fp);
 	}
 	else
 		syslog (LOG_NOTICE, "Problems: %s", sc.executionDirectory);
@@ -55,9 +55,9 @@ void writeToLogFile(char* filePath, char *logMessage,int error) {
 	//here are errors and important notifications
 	if(error){
 		asprintf(&path,"%s/%s.err",sc.executionDirectory, filePath);	
-		if((fp = fopen(path, "a")) != NULL) {
-			fputs(logMessage,fp);    
-			fclose(fp);
+		if((fp = open(path, O_CREAT| O_WRONLY | O_APPEND,0644)) >= 0) {
+			write(fp,logMessage,strlen(logMessage));   
+		close(fp);
 		}
 		free(path);
 	}

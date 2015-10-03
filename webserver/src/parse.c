@@ -28,6 +28,7 @@ void writeResponse(int socket, Client *client){
 			while (	(length = fread(client->httpRes.buffer, 1, BUFFERSIZE,fp)) > 0 ) {
 				write(socket,client->httpRes.buffer,length);
 			}
+			client->httpRes.closeConnection = 1;
 		}
 		else {
 			client->httpRes.closeConnection = 1;
@@ -35,6 +36,7 @@ void writeResponse(int socket, Client *client){
 		fclose(fp);
 		//send success to logger
 		loggerSuccess(200, client);
+		
 	}
 }
 
@@ -98,7 +100,7 @@ void parseMessageSendResponse(int socket, Client *client, int readSize){
 	}
 	//check if is wrong request
 	if(readSize<=i){
-		loggerClient(socket,BADREQUEST,client, "Only simple GET and HEAD operation supported","");
+		loggerClient(socket,BADREQUEST,client, "Bad request","");
 		return;
 	}
 	
@@ -122,7 +124,7 @@ void parseMessageSendResponse(int socket, Client *client, int readSize){
 		client->httpReq.uri[i++]=*p;
 	}
 	if(readSize<=i){
-		loggerClient(socket,BADREQUEST,client, "Only simple GET and HEAD operation supported","");
+		loggerClient(socket,BADREQUEST,client, "Bad request","");
 		return;
 	}
 	//protection for owerflow
@@ -143,7 +145,7 @@ void parseMessageSendResponse(int socket, Client *client, int readSize){
 			return;
 		}
 		//it must respond with an HTTP/0.9 Simple-Response
-		strncpy(client->httpReq.httpVersion, "HTTP/0.9", 8);
+		strncpy(client->httpReq.httpVersion, "HTTP/0.9\0", 9);
 		writeResponse(socket , client);
 		//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
 		client->httpRes.closeConnection = 1;
@@ -163,13 +165,15 @@ void parseMessageSendResponse(int socket, Client *client, int readSize){
 			}
 			client->httpReq.httpVersion[i++]=*p;
 		}
+		//protection for owerflow
+		client->httpReq.httpVersion[8]='\0';
 		
 		//if URL is not valid 
 		if(validateURL(socket,client)<0){
 			return;
 		}
-/*				printf("URI: %s\n",httpReq.uri);*/
-/*				printf("HTTP version: %s\n",httpReq.httpVersion);*/
+/*				printf("URI: %s\n",client->httpReq.uri);*/
+/*				printf("HTTP version: %s\n",client->httpReq.httpVersion);*/
 /*		printf("Message: %s\n",client->httpReq.message);*/
 	
 		writeResponse(socket, client);

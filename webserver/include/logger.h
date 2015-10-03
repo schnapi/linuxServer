@@ -6,9 +6,10 @@
 #include<string.h>    //strlen
 #include<arpa/inet.h> //inet_addr
 #include <errno.h>
-#include <unistd.h> //read and write
+#include <unistd.h> //read and write and close
 #include <syslog.h>
 #include "utilityHTTP.h"
+#include <fcntl.h> // for open
 
 #define ERROR -1
 #define LOG 0

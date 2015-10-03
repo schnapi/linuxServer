@@ -1,16 +1,17 @@
 #include "../include/mux.h"
 
+#define MAXCLIENTS 400
 int mux(int serverSocket)
 {
 	//we need this to get client ip address
 	struct sockaddr_in client;
 	int c=sizeof(struct sockaddr_in);
 	
-	int acceptedSocket, endServer, squeezeArray,close_conn; // all is 0 or FALSE
+	int acceptedSocket, endServer, squeezeArray,closeConnection; // all is 0 or FALSE
 	//poll of sockets
-	struct pollfd fds[200];
+	struct pollfd fds[MAXCLIENTS];
 	// array of clients foreach file descriptor
-	Client clients[200];
+	Client clients[MAXCLIENTS];
 	//nfds: current number of file descriptors sockets
 	int nfds=1, currentSize, i, j, readSize; //i,j indexes for loops, readSize for recv function
 
@@ -82,7 +83,7 @@ int mux(int serverSocket)
 			else
 			{
 				loggerServer(LOG_NOTICE,"Handler assigned","", clients[i-1].httpRes.IPAddress);
-				close_conn=FALSE;
+				closeConnection=FALSE;
 				while(TRUE)
 				{
 					//if receive fails
@@ -92,7 +93,7 @@ int mux(int serverSocket)
 						if (errno!=EWOULDBLOCK)
 						{
 							loggerServer(LOG_ERR,"Recv failed","",clients[i-1].httpRes.IPAddress);
-							close_conn=TRUE;
+							closeConnection=TRUE;
 						}
 						break;
 					}
@@ -100,7 +101,7 @@ int mux(int serverSocket)
 					//if client has closed connection
 					if (readSize==0)
 					{
-						close_conn=TRUE;
+						closeConnection=TRUE;
 						break;
 					}
 					//parse received data
@@ -108,13 +109,13 @@ int mux(int serverSocket)
 					if(clients[i-1].httpRes.closeConnection == 1)
 					{
 						close(fds[i].fd);
-						close_conn=TRUE;
+						closeConnection=TRUE;
 						break;
 					}
 				}
 
 				//close connection and set fd to -1 that we can remove this fd from array
-				if (close_conn)
+				if (closeConnection)
 				{
 					close(fds[i].fd);
 					fds[i].fd=-1;
