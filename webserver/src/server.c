@@ -9,6 +9,7 @@
 #include<pthread.h> //for threading , link with lpthread
 #include <fcntl.h> //for multiplexing
 #include <limits.h> //PATH_MAX
+#include <signal.h>
 
 #define SERVER
 #include "../include/utilityHTTP.h"
@@ -31,10 +32,12 @@ typedef struct {
 } ClientSocket;
 	
 int main(int argc, char *argv[]) {
-		
+//ignore sigpipe signal
+	signal (SIGPIPE, SIG_IGN);
+	
   parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
   sc.customLog = "log";
-  sc.handlingMethod = "thread";
+  sc.handlingMethod = "mux";
   
   parseCommandLineOptions(&sc, argc, argv);
   

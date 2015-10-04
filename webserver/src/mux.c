@@ -12,8 +12,8 @@ int mux(int serverSocket)
 	struct pollfd fds[MAXCLIENTS];
 	// array of clients foreach file descriptor
 	Client clients[MAXCLIENTS];
-	//nfds: current number of file descriptors sockets
-	int nfds=1, currentSize, i, j, readSize; //i,j indexes for loops, readSize for recv function
+	//numberOfFileDescriptors: current number of file descriptors sockets
+	int numberOfFileDescriptors=1, currentSize, i, j, readSize; //i,j indexes for loops, readSize for recv function
 
 	//initialize the pollfd structure
 	memset(fds, 0 , sizeof(fds));
@@ -25,14 +25,14 @@ int mux(int serverSocket)
 	while (endServer==FALSE)
 	{
 /*		printf("Waiting on clients.\n");*/
+printf("numberOfFileDescriptors: %d\n",numberOfFileDescriptors);
 		//poll blocks and wait for clients
-		if(poll(fds, nfds, -1)<0) {
+		if(poll(fds, numberOfFileDescriptors, -1)<0) {
 			loggerServer(LOG_ERR,"Poll function failed","",NULL);
 			break;
 		}
-
 		//we need to find which descriptor is readable
-		currentSize=nfds;
+		currentSize=numberOfFileDescriptors;
 		for (i=0; i < currentSize; i++)
 		{
 			//this file descriptor is not ready yet
@@ -50,11 +50,15 @@ int mux(int serverSocket)
 			//if server descriptor is readable
 			if (fds[i].fd==serverSocket)
 			{
-			 		printf("Listening socket is readable\n");
+/*			 		printf("Listening socket is readable\n");*/
 
 					//accept all connections that are in queue and send data
 					do
 					{
+						if(numberOfFileDescriptors==MAXCLIENTS/2) {
+/*							printf("test: %d\n",numberOfFileDescriptors);*/
+							break;
+						}
 						//accept connections
 						acceptedSocket=accept(serverSocket, (struct sockaddr *)&client, (socklen_t*)&c);
 						//if accept fails, try again later or end server
@@ -74,25 +78,25 @@ int mux(int serverSocket)
 
 						loggerServer(LOG_NOTICE,"Connection accepted","", clients[i].httpRes.IPAddress);
 						//add client in queue
-						fds[nfds].fd=acceptedSocket;
-						fds[nfds].events=POLLIN; //ready to read data, response is in revents flag
-						nfds++;
+						fds[numberOfFileDescriptors].fd=acceptedSocket;
+						fds[numberOfFileDescriptors].events=POLLIN; //ready to read data, response is in revents flag
+						numberOfFileDescriptors++;
 					} while (acceptedSocket!=-1);
 			}
 			//send data to clients
 			else
 			{
-				loggerServer(LOG_NOTICE,"Handler assigned","", clients[i-1].httpRes.IPAddress);
+				loggerServer(LOG_NOTICE,"Handler assigned","", clients[i].httpRes.IPAddress);
 				closeConnection=FALSE;
 				while(TRUE)
 				{
 					//if receive fails
-					if((readSize=recv(fds[i].fd, clients[i-1].httpReq.message, 10000, 0)) < 0)
+					if((readSize=recv(fds[i].fd, clients[i].httpReq.message, 10000, 0)) < 0)
 					{
 						//if receive fail, but if there is no data, it returns EWOULDBLOCK
 						if (errno!=EWOULDBLOCK)
 						{
-							loggerServer(LOG_ERR,"Recv failed","",clients[i-1].httpRes.IPAddress);
+							loggerServer(LOG_ERR,"Recv failed","",clients[i].httpRes.IPAddress);
 							closeConnection=TRUE;
 						}
 						break;
@@ -105,10 +109,9 @@ int mux(int serverSocket)
 						break;
 					}
 					//parse received data
-					parseMessageSendResponse(fds[i].fd,&clients[i-1], readSize);
-					if(clients[i-1].httpRes.closeConnection == 1)
+					parseMessageSendResponse(fds[i].fd,&clients[i], readSize);
+					if(clients[i].httpRes.closeConnection == 1)
 					{
-						close(fds[i].fd);
 						closeConnection=TRUE;
 						break;
 					}
@@ -127,13 +130,13 @@ int mux(int serverSocket)
 		
 		if (squeezeArray)
 		{
-			for (i=0; i < nfds; i++)
+			for (i=0; i < numberOfFileDescriptors; i++)
 			{
 				// if is closed socket
 				if (fds[i].fd==-1)
 				{
 					//move all fd and clients on the rigth to the left
-					for(j=i; j < nfds; j++)
+					for(j=i; j < numberOfFileDescriptors; j++)
 					{
 						fds[j].fd=fds[j+1].fd;
 						clients[j]=clients[j+1];
@@ -141,7 +144,7 @@ int mux(int serverSocket)
 					//move one field back
 					i--;
 					//and decrease number of open sockets
-					nfds--;
+					numberOfFileDescriptors--;
 				}
 			}
 			squeezeArray=FALSE;
@@ -149,7 +152,7 @@ int mux(int serverSocket)
 	}
 
 	// close all the sockets that are open 
-	for (i=0; i < nfds; i++)
+	for (i=0; i < numberOfFileDescriptors; i++)
 	{
 		if(fds[i].fd>=0){
 			close(fds[i].fd);
