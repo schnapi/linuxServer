@@ -9,7 +9,8 @@ int checkErrno(int socket, Client *client){
 /*		printf("test6: %d\n",ENOMEM);*/
 /*		printf("test7: %d\n",ENOENT);*/
 /*		printf("test8: %d\n",ENOTDIR);*/
-	printf("Errno is: %d\n",errno);
+	if(errno!=0)
+		printf("Errno is: %d\n",errno);
 	switch(errno) {
 		case EACCES:
 			loggerClient(socket,FORBIDDEN,client, "Read or search permission was denied for a component of the path prefix.",client->httpRes.filePath);
@@ -50,14 +51,14 @@ void writeToLogFile(char* filePath, char *logMessage,int error) {
 		close(fp);
 	}
 	else
-		syslog (LOG_NOTICE, "Problems: %s", sc.executionDirectory);
+		syslog (LOG_ERR, "Write to log file failed: %s/%s", sc.executionDirectory,filePath);
 	free(path);
 	//here are errors and important notifications
 	if(error){
 		asprintf(&path,"%s/%s.err",sc.executionDirectory, filePath);	
 		if((fp = open(path, O_CREAT| O_WRONLY | O_APPEND,0644)) >= 0) {
 			write(fp,logMessage,strlen(logMessage));   
-		close(fp);
+			close(fp);
 		}
 		free(path);
 	}
@@ -106,56 +107,45 @@ void loggerServer(int level,char *s1,char *s2,char* clientIp) {
 	free(logMessage);
 }
 
-void loggerClient(int socket,int method, Client *client, char *s1, char *s2/*, char *logType*/)
+void loggerClient(int socket,int method, Client *client, char *s1, char *s2)
 {
-	char *content;
 	switch (method) {
 	case BADREQUEST:
-		content="<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\"><html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>403 Bad Request</title>\n</head><body>\n<h1>Bad Request</h1>\n<p>The server cannot or will not process the request due to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing)</p>\n</body></html>";
+		asprintf(&client->httpRes.filePath,"%s/%d",sc.statusCodesDir,BADREQUEST);
 		client->httpRes.statusCode="400 Bad Request";
-		client->httpRes.contentLength = strlen(content);
 		break;
 	case FORBIDDEN:
-		content="<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>403 Forbidden</title>\n</head><body>\n<h1>Forbidden</h1>\n<p>The requested URL, file type or operation is not allowed on this simple static file webserver,</p><p>or file extension type not supported.</p>\n</body></html>";
+		asprintf(&client->httpRes.filePath,"%s/%d",sc.statusCodesDir,FORBIDDEN);
 		client->httpRes.statusCode="403 Forbidden";
-		client->httpRes.contentLength = strlen(content);
 		break;
 	case NOTFOUND:
-		content="<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>404 Not Found</title>\n</head>\n<body>\n<h1>Not Found</h1>\n<p>The requested URL was not found on this server.</p>\n</body></html>";
+		asprintf(&client->httpRes.filePath,"%s/%d",sc.statusCodesDir,NOTFOUND);
 		client->httpRes.statusCode="404 Not Found";
-		client->httpRes.contentLength = strlen(content);
 		break;
 	case INTERNALSERVERERROR:
-		content="<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>500 Internal Server Error</title>\n</head>\n<body>\n<h1>500 Internal Server Error</h1>\n<p>ERROR WITH AN CONFIG FILE,</p>\n<p>or something else went wrong.</p>\n</body></html>";
+		asprintf(&client->httpRes.filePath,"%s/%d",sc.statusCodesDir,INTERNALSERVERERROR);
 		client->httpRes.statusCode="500 Internal Server Error";
-		client->httpRes.contentLength = strlen(content);
 		break;
 	case NOTIMPLEMENTED:
-		content="<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n<html><head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n<title>501 Not Implemented</title>\n</head><body>\n<h1>Not Implemented</h1>\n<p>This type of operation is not supported on this webserver. Server support only GET and HEAD methods.</p>\n</body></html>";
+		asprintf(&client->httpRes.filePath,"%s/%d",sc.statusCodesDir,NOTIMPLEMENTED);
 		client->httpRes.statusCode="501 Not Implemented";
-		client->httpRes.contentLength = strlen(content);
 		break;
 	}
-	strncpy(client->httpRes.lastModified , "Fri, 18 Sep 2015 15:24:38 GMT", 29);
-	generateHeader(&client->httpRes); //utilityHTTP.c
-	//write header and then content
-	write(socket,client->httpRes.buffer,strlen(client->httpRes.buffer));
-	write(socket,content,client->httpRes.contentLength);
-	client->httpRes.closeConnection = 1;
-	loggerSuccess(method, client);
+	writeResponse(socket , client);
+	free(client->httpRes.filePath);
 }
 
-void loggerSuccess(int method, Client *client){
+void loggerSuccess(char* method, Client *client){
 	//date time int Common logInfo format for logger
 	getDateTimeCLF(dateTimeCLF, SIZEOFDATETIMECLF);
 	if(sc.customLog==NULL){
-		syslog (LOG_INFO, "%s - - [%s] \"%s %s %s\" %d %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,method,client->httpRes.contentLength);
+		syslog (LOG_INFO, "%s - - [%s] \"%s %s %s\" %s %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,method,client->httpRes.contentLength);
 	}
 	else 
 	{
 		char *logMessage;
 		//creates log message in CLF (Common logFile format)
-		asprintf(&logMessage,"%s - - [%s] \"%s %s %s\" %d %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,method,client->httpRes.contentLength);
+		asprintf(&logMessage,"%s - - [%s] \"%s %s %s\" %s %lu\n",client->httpRes.IPAddress, dateTimeCLF, client->httpReq.method,client->httpReq.uri,client->httpReq.httpVersion,method,client->httpRes.contentLength);
 		writeToLogFile(sc.customLog, logMessage, 0);
 		//free memory due of use asprintf function
 		free(logMessage);

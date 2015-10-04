@@ -3,6 +3,7 @@
 
 
 void writeResponse(int socket, Client *client){
+	/*http://pubs.opengroup.org/onlinepubs/009695399/functions/flockfile.html*/
 	FILE *fp;
 	//r-read data
 	if((fp = fopen(client->httpRes.filePath, "r")) == NULL) {
@@ -14,7 +15,6 @@ void writeResponse(int socket, Client *client){
 		fseek(fp, 0L, SEEK_END); //goes to end of the file
 		client->httpRes.contentLength=ftell(fp);
 		fseek(fp,0L,SEEK_SET); //go back to where we were
-		client->httpRes.statusCode="200 OK";
 		//if request is not simple then send headers
 		if(!client->httpRes.simple) {
 			generateHeader(&client->httpRes); // in utilityHTTP.c
@@ -34,8 +34,11 @@ void writeResponse(int socket, Client *client){
 			client->httpRes.closeConnection = 1;
 		}
 		fclose(fp);
+		char statusCode[4];
+		strncpy ( statusCode, client->httpRes.statusCode, 3 );
+		statusCode[3] = '\0'; 
 		//send success to logger
-		loggerSuccess(200, client);
+		loggerSuccess(statusCode, client);
 		
 	}
 }
@@ -146,6 +149,7 @@ void parseMessageSendResponse(int socket, Client *client, int readSize){
 		}
 		//it must respond with an HTTP/0.9 Simple-Response
 		strncpy(client->httpReq.httpVersion, "HTTP/0.9\0", 9);
+		client->httpRes.statusCode="200 OK";
 		writeResponse(socket , client);
 		//Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
 		client->httpRes.closeConnection = 1;
@@ -176,6 +180,7 @@ void parseMessageSendResponse(int socket, Client *client, int readSize){
 /*				printf("HTTP version: %s\n",client->httpReq.httpVersion);*/
 /*		printf("Message: %s\n",client->httpReq.message);*/
 	
+		client->httpRes.statusCode="200 OK";
 		writeResponse(socket, client);
 	}
 }

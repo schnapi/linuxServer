@@ -32,6 +32,7 @@ typedef struct {
 	char* customLog;
 	char* nodeName;
 	char *executionDirectory;
+	char *statusCodesDir;
 	FileExtensions fileSupport[11]; 
 } ServerConfigurations;
 

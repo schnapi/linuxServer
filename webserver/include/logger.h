@@ -8,8 +8,9 @@
 #include <errno.h>
 #include <unistd.h> //read and write and close
 #include <syslog.h>
-#include "utilityHTTP.h"
 #include <fcntl.h> // for open
+#include "utilityHTTP.h"
+#include "parse.h"
 
 #define ERROR -1
 #define LOG 0
@@ -23,5 +24,5 @@ void writeToLogFile(char* filePath, char *logMessage,int error);
 int checkErrno(int socket, Client *client);
 void loggerClient(int socket,int method,Client *client, char *s1, char *s2);
 void loggerServer(int level,char *s1,char *s2,char* clientIp);
-void loggerSuccess(int method, Client *client);
+void loggerSuccess(char* method, Client *client);
 #endif

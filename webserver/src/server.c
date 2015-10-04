@@ -38,6 +38,8 @@ int main(int argc, char *argv[]) {
   
   parseCommandLineOptions(&sc, argc, argv);
   
+  //set status code directory
+	asprintf(&sc.statusCodesDir,"%s/%s",sc.executionDirectory,"statusCodesPages");
 	
 
   //(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
@@ -116,7 +118,6 @@ int main(int argc, char *argv[]) {
 
   int c = sizeof (struct sockaddr_in), clientSocket;
   ClientSocket *clientSocketP;
-
   //this could be a problem with accept if there is a lot of clients - better choice is synchronous I/O multiplexing
   while ((clientSocket = accept(mySocket, (struct sockaddr *) &client, (socklen_t*) & c))) {
       pthread_t clientThread;
@@ -132,6 +133,7 @@ int main(int argc, char *argv[]) {
               loggerServer(LOG_ERR, "could not create thread", "", clientSocketP->IpAddress);
               return 1;
           }
+          
           //do not join thread because we would have to wait this thread
           /*pthread_join( clientThread , NULL);*/
           loggerServer(LOG_NOTICE, "Handler assigned", "", clientSocketP->IpAddress);
@@ -155,6 +157,7 @@ int main(int argc, char *argv[]) {
   }
   
   free(sc.executionDirectory);
+  free(sc.statusCodesDir);
 
   return 0;
 }
