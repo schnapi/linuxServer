@@ -18,6 +18,8 @@ int mux(int serverSocket)
 	//initialize the pollfd structure
 	memset(fds, 0 , sizeof(fds));
 
+  fcntl(serverSocket, F_SETFL, O_NONBLOCK);
+  
 	//set initial listening socket 
 	fds[0].fd=serverSocket;
 	fds[0].events=POLLIN; //POLLIN data to read without blocking
@@ -36,14 +38,15 @@ printf("numberOfFileDescriptors: %d\n",numberOfFileDescriptors);
 		for (i=0; i < currentSize; i++)
 		{
 			//this file descriptor is not ready yet
-			if(fds[i].revents==0)
+			if(fds[i].revents==0) {
 				continue;
+			}
 	
 			//If revents is not ready to read data then it is an unexpected result
-			if(fds[i].revents!=POLLIN)
+			if(fds[i].revents!=POLLIN && fds[i].revents!=POLLOUT)
 			{
 				loggerServer(LOG_ERR,"Error! revents","",NULL);
-/*				printf("Error! revents=%d\n", fds[i].revents);*/
+				printf("Error! revents=%d,%d,%d,%d\n", fds[i].revents,POLLIN,POLLPRI,POLLOUT);
 				endServer=TRUE;
 				break;
 			}
@@ -55,7 +58,7 @@ printf("numberOfFileDescriptors: %d\n",numberOfFileDescriptors);
 					//accept all connections that are in queue and send data
 					do
 					{
-						if(numberOfFileDescriptors==MAXCLIENTS/2) {
+						if(numberOfFileDescriptors==MAXCLIENTS-1) {
 /*							printf("test: %d\n",numberOfFileDescriptors);*/
 							break;
 						}
@@ -79,13 +82,14 @@ printf("numberOfFileDescriptors: %d\n",numberOfFileDescriptors);
 						loggerServer(LOG_NOTICE,"Connection accepted","", clients[i].httpRes.IPAddress);
 						//add client in queue
 						fds[numberOfFileDescriptors].fd=acceptedSocket;
-						fds[numberOfFileDescriptors].events=POLLIN; //ready to read data, response is in revents flag
+						fds[numberOfFileDescriptors].events=POLLOUT; //ready to write data, response is in revents flag
 						numberOfFileDescriptors++;
 					} while (acceptedSocket!=-1);
 			}
 			//send data to clients
 			else
 			{
+      	fcntl(fds[i].fd, F_SETFL, O_NONBLOCK);
 				loggerServer(LOG_NOTICE,"Handler assigned","", clients[i].httpRes.IPAddress);
 				closeConnection=FALSE;
 				while(TRUE)
@@ -110,7 +114,8 @@ printf("numberOfFileDescriptors: %d\n",numberOfFileDescriptors);
 					}
 					//parse received data
 					parseMessageSendResponse(fds[i].fd,&clients[i], readSize);
-					if(clients[i].httpRes.closeConnection == 1)
+					
+/*					if(clients[i].httpRes.closeConnection == 1)*/
 					{
 						closeConnection=TRUE;
 						break;
@@ -138,7 +143,7 @@ printf("numberOfFileDescriptors: %d\n",numberOfFileDescriptors);
 					//move all fd and clients on the rigth to the left
 					for(j=i; j < numberOfFileDescriptors; j++)
 					{
-						fds[j].fd=fds[j+1].fd;
+						fds[j]=fds[j+1];
 						clients[j]=clients[j+1];
 					}
 					//move one field back

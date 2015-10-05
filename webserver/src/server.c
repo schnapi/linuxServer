@@ -87,11 +87,6 @@ int main(int argc, char *argv[]) {
       return 1;
   }
 
-  //Synchronous I/O Multiplexing - set socket to be non-blocking
-  if (!strncmp(sc.handlingMethod, "mux", 3)) {
-      fcntl(mySocket, F_SETFL, O_NONBLOCK);
-  }
-
   //Bind a socket - listen to connections that are comming 
   if (bind(mySocket, (struct sockaddr *) &server, sizeof (server)) < 0) {
       loggerServer(LOG_ERR, "bind failed", "", NULL);
