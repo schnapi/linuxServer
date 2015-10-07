@@ -33,7 +33,7 @@ typedef struct {
 	char* nodeName;
 	char *executionDirectory;
 	char *statusCodesDir;
-	FileExtensions fileSupport[11]; 
+	FileExtensions fileSupport[14]; 
 } ServerConfigurations;
 
 typedef struct {
@@ -75,6 +75,9 @@ typedef struct {
 			{"zip", "image/zip" },  
 			{"gz",  "image/gz"  },  
 			{"tar", "image/tar" },  
+			{"css", "text/css" },  
+			{"js", "application/javascript" },  
+			{"ogg", "audio/ogg" },  
 			{0,0} }
 	};
 	char dateTimeGMT[SIZEOFDATETIMEGMT];

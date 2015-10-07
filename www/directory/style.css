@@ -1,0 +1,36 @@
+*{
+	margin:0;
+	padding:0;
+}
+
+#piano{
+	height: 245px;
+	width: 1000px;
+	margin: auto;
+}
+.regular{
+	background-color:white;
+	height: 175px;
+	width: 45px;
+	border:solid thin black;
+}
+.touche{
+	border-radius:0px 0px 5px 5px;
+}
+
+.touche.active{
+	box-shadow: inset 0px -10px 15px 0px #656565;
+}
+.sharp{
+	background-color:black;
+	height: 119px;
+	width: 32px;
+	margin-left: -16px;
+	margin-right: -16px;
+	z-index: 100;
+	position:relative;
+}
+#piano div
+{
+	float:left
+}
