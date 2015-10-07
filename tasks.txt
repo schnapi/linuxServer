@@ -10,9 +10,7 @@ ________________________________________________________________________________
 tasks to be done:
 
 2.5 Process Management
-2.6 Command Line Options
 2.8 Client Compatibility
-2.12 Jail
 
 
 _______________________________________________________________________________________________________________________
@@ -23,11 +21,7 @@ tasks currently being done:
 _______________________________________________________________________________________________________________________
 tasks requiring validation:
 
-2.6 Command Line Options
-	I have worked on parsing CLI arguments:
-CF utilityCLI.c & utilityCLI.h
-Please make sure that my implementation is supposed to work with yours.
-Please implement the call to the daemonize function, I don't know how to use the cmd parameter.
+2.12 Jail
 
 _______________________________________________________________________________________________________________________
 almost done or done tasks:
@@ -36,6 +30,7 @@ almost done or done tasks:
 2.2 HTTP 1.0
 2.3 HTML 4.0
 2.4 Concurrent Request Handling // threading and mux is done, we can have all four methods
+2.6 Command Line Options
 2.7 URL Validation // we use realpath function
 2.9 Configuration File // ServerConfigurations sc is global variable and structure in utilityHTTP.c file 
 2.10 Run as Daemon

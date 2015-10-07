@@ -42,7 +42,8 @@ void writeResponse(int socket, Client *client) {
 
 int validateURL(int sock, Client *client) {
     //2.7 URL Validation
-    asprintf(&client->httpRes.filePath, "%s%s", sc.rootDirectory, client->httpReq.uri);
+    asprintf(&client->httpRes.filePath, "/www%s", client->httpReq.uri);
+    
     //checks overflow
     if (strlen(client->httpRes.filePath) >= PATH_MAX) {
         loggerClient(sock, BADREQUEST, client, "A component of a pathname exceeded NAME_MAX characters, or an entire pathname exceeded PATH_MAX characters.", client->httpRes.filePath);
