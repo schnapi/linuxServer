@@ -17,22 +17,22 @@ void parseCommandLineOptions(ServerConfigurations *sc, int argc, char* argv[]) {
                 sc->port = port;
             }
         } else if (strncmp(argv[i], "-d", 2) == 0) {
-        		//this is for daemon
-						char *programName;
-						//if slash character is missing then program name is argv[0]
-						if((programName=strrchr(argv[0],'/')) == NULL)
-							programName = argv[0];
-						//increase pointer by one to remove slash
-						else
-							programName++;
+            //this is for daemon
+            char *programName;
+            //if slash character is missing then program name is argv[0]
+            if ((programName = strrchr(argv[0], '/')) == NULL)
+                programName = argv[0];
+                //increase pointer by one to remove slash
+            else
+                programName++;
 
-						createDaemon(programName);
-						if (daemonIsRunning()) {
-							loggerServer(LOG_ERR, "daemon already running", "", NULL);
-							exit(1);
-						}
-						else
-							sc->isDaemon = 1;	
+            createDaemon(programName);
+            if (daemonIsRunning()) {
+                loggerServer(LOG_ERR, "daemon already running", "", NULL);
+                exit(1);
+            } else {
+                sc->isDaemon = 1;
+            }
         } else if (strncmp(argv[i], "-l", 2) == 0) {
             if ((argc - 1) == i) {
                 printf("-l found but filename is missing...\n");

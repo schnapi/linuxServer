@@ -26,10 +26,8 @@ void writeResponse(int socket, Client *client) {
             while ((length = fread(client->httpRes.buffer, 1, BUFFERSIZE, fp)) > 0) {
                 write(socket, client->httpRes.buffer, length);
             }
-            client->httpRes.closeConnection = 1;
-        } else {
-            client->httpRes.closeConnection = 1;
         }
+        client->httpRes.closeConnection = 1;
         fclose(fp);
         char statusCode[4];
         strncpy(statusCode, client->httpRes.statusCode, 3);
@@ -43,7 +41,7 @@ void writeResponse(int socket, Client *client) {
 int validateURL(int sock, Client *client) {
     //2.7 URL Validation
     asprintf(&client->httpRes.filePath, "/www%s", client->httpReq.uri);
-    
+
     //checks overflow
     if (strlen(client->httpRes.filePath) >= PATH_MAX) {
         loggerClient(sock, BADREQUEST, client, "A component of a pathname exceeded NAME_MAX characters, or an entire pathname exceeded PATH_MAX characters.", client->httpRes.filePath);
@@ -147,8 +145,7 @@ void parseMessageSendResponse(int socket, Client *client, int readSize) {
         writeResponse(socket, client);
         //Note that the Simple-Response consists only of the entity body and is terminated by the server closing the connection.
         client->httpRes.closeConnection = 1;
-    }        //full request
-    else {
+    } else {//full request
         //decode HTTP version
         for (i = 0; i < 8; p++) {
             if (*p == '\r') {
@@ -167,9 +164,6 @@ void parseMessageSendResponse(int socket, Client *client, int readSize) {
         if (validateURL(socket, client) < 0) {
             return;
         }
-        /*				printf("URI: %s\n",client->httpReq.uri);*/
-        /*				printf("HTTP version: %s\n",client->httpReq.httpVersion);*/
-        /*		printf("Message: %s\n",client->httpReq.message);*/
 
         client->httpRes.statusCode = "200 OK";
         writeResponse(socket, client);
