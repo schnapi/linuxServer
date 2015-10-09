@@ -39,6 +39,8 @@ int main(int argc, char *argv[]) {
     sc.customLog = "log";
     sc.handlingMethod = "mux";
 
+    parseCommandLineOptions(&sc, argc, argv);
+    
     // Set process jail, to the parent dir of www
     char rootDir[PATH_MAX];
     char* test;
@@ -51,8 +53,6 @@ int main(int argc, char *argv[]) {
     }
     //set status code directory
     asprintf(&sc.statusCodesDir, "/statusCodesPages");
-
-    parseCommandLineOptions(&sc, argc, argv);
 
     //(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
     if (sc.customLog == NULL) {
