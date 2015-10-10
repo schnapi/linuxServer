@@ -1,3 +1,5 @@
+
+#include<pthread.h> //for threading , link with lpthread
 #include<stdio.h>
 #include<string.h>    //strlen
 #include<stdlib.h>    //strlen
@@ -6,7 +8,6 @@
 #include <unistd.h> //read and write
 #include <syslog.h>
 
-#include<pthread.h> //for threading , link with lpthread
 #include <fcntl.h> //for multiplexing
 #include <limits.h> //PATH_MAX
 #include <signal.h>
