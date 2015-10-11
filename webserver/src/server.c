@@ -140,9 +140,6 @@ int main(int argc, char *argv[]) {
                 loggerServer(LOG_ERR, "could not create thread", "", clientSocketP->IpAddress);
                 return 1;
             }
-
-            //do not join thread because we would have to wait this thread
-            /*pthread_join( clientThread , NULL);*/
             loggerServer(LOG_NOTICE, "Handler assigned", "", clientSocketP->IpAddress);
             pthread_detach(clientThread);
         } else if (!strncmp(sc.handlingMethod, "fork", 4)) {
@@ -194,5 +191,6 @@ void *connection_handler(void *mySocket) {
 
     //Free the socket pointer
     free(mySocket);
+    pthread_exit(NULL);
     return NULL;
 }
