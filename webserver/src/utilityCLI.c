@@ -1,11 +1,4 @@
 #include "../include/utilityCLI.h"
-#include<pthread.h>
-
-void *thread(void *ptr) {
-    printf("Init hread\n");
-    pthread_exit(NULL);
-    return NULL;
-}
 
 void parseCommandLineOptions(ServerConfigurations *sc, int argc, char* argv[]) {
     int i;
@@ -66,12 +59,6 @@ void parseCommandLineOptions(ServerConfigurations *sc, int argc, char* argv[]) {
                 printf("-s - using method '%s'\n", method);
                 sc->handlingMethod = method; // TODO: maybe use an enumeration for handling methods.
             }
-
-
-            pthread_t initthread;
-            pthread_create(&initthread, NULL, thread, NULL);
-            pthread_join(initthread, NULL);
-
 
         } else {
             printf("Unknown parameter '%s'\n", argv[i]);
