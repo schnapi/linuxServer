@@ -121,35 +121,34 @@ int main(int argc, char *argv[]) {
     //mux - multiplexing synchronous I/O
     if (!strncmp(sc.handlingMethod, "mux", 3)) {
         return mux(mySocket);
+    } else if (!strncmp(sc.handlingMethod, "thread", 6)) {
+
+        int c = sizeof (struct sockaddr_in), clientSocket;
+        ClientSocket *clientSocketP;
+        //this could be a problem with accept if there is a lot of clients - better choice is synchronous I/O multiplexing
+        while ((clientSocket = accept(mySocket, (struct sockaddr *) &client, (socklen_t*) & c))) {
+            pthread_t clientThread;
+            clientSocketP = malloc(1);
+            //get ip
+            inet_ntop(AF_INET, &(client.sin_addr), clientSocketP->IpAddress, INET_ADDRSTRLEN);
+            loggerServer(LOG_NOTICE, "Connection accepted", "", clientSocketP->IpAddress);
+            clientSocketP->socket = clientSocket;
+
+            //connection_handler function must return void* and take a single void* parameter
+            // NULL means that the thread is created with default attributes
+            if (pthread_create(&clientThread, NULL, connection_handler, (void*) clientSocketP) < 0) {
+                loggerServer(LOG_ERR, "could not create thread", "", clientSocketP->IpAddress);
+                return 1;
+            }
+            loggerServer(LOG_NOTICE, "Handler assigned", "", clientSocketP->IpAddress);
+            pthread_detach(clientThread);
+        }
+
+        if (clientSocket < 0) {
+            loggerServer(LOG_ERR, "Accept failed", "", NULL);
+            return 1;
+        }
     }
-		else if (!strncmp(sc.handlingMethod, "thread", 6)) {
-
-			int c = sizeof (struct sockaddr_in), clientSocket;
-			ClientSocket *clientSocketP;
-			//this could be a problem with accept if there is a lot of clients - better choice is synchronous I/O multiplexing
-			while ((clientSocket = accept(mySocket, (struct sockaddr *) &client, (socklen_t*) & c))) {
-					pthread_t clientThread;
-					clientSocketP = malloc(1);
-					//get ip
-					inet_ntop(AF_INET, &(client.sin_addr), clientSocketP->IpAddress, INET_ADDRSTRLEN);
-					loggerServer(LOG_NOTICE, "Connection accepted", "", clientSocketP->IpAddress);
-					clientSocketP->socket = clientSocket;
-				
-					//connection_handler function must return void* and take a single void* parameter
-					// NULL means that the thread is created with default attributes
-					if (pthread_create(&clientThread, NULL, connection_handler, (void*) clientSocketP) < 0) {
-						  loggerServer(LOG_ERR, "could not create thread", "", clientSocketP->IpAddress);
-						  return 1;
-					}
-					loggerServer(LOG_NOTICE, "Handler assigned", "", clientSocketP->IpAddress);
-					pthread_detach(clientThread);
-			}
-
-			if (clientSocket < 0) {
-					loggerServer(LOG_ERR, "Accept failed", "", NULL);
-					return 1;
-			}
-		} 
     else if (!strncmp(sc.handlingMethod, "fork", 4)) {
         puts("Not implemented");
         return 3;
