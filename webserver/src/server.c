@@ -194,6 +194,5 @@ void *connection_handler(void *mySocket) {
 
     //Free the socket pointer
     free(mySocket);
-    pthread_exit(NULL);
-    return 0;
+    return NULL;
 }
