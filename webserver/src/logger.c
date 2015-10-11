@@ -9,8 +9,8 @@ int checkErrno(int socket, Client *client) {
     /*		printf("test6: %d\n",ENOMEM);*/
     /*		printf("test7: %d\n",ENOENT);*/
     /*		printf("test8: %d\n",ENOTDIR);*/
-    if (errno != 0)
-        printf("Errno is: %d\n", errno);
+    /*if (errno != 0)
+        printf("Errno is: %d\n", errno);*/
     switch (errno) {
         case EACCES:
             loggerClient(socket, FORBIDDEN, client, "Read or search permission was denied for a component of the path prefix.", client->httpRes.filePath);

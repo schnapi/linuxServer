@@ -71,6 +71,6 @@ void printHelp() {
     printf("-h\tPrint help text.\n");
     printf("-p port\tListen to port number port.\n");
     printf("-d\tRun as a daemon instead of as a normal program.\n");
-    printf("-l logfile\tLog to logfile. If this option is not specified, logging will be output to syslog, which is the default.\n");
-    printf("-s [fork | thread | prefork | mux]\tSelect request handling method.\n");
+    printf("-l logfile\tLog to logfile. If this option is not specified, logging will be output to syslog.\n");
+    printf("-s [thread | mux]\tSelect request handling method.\n");
 }

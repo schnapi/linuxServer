@@ -25,7 +25,7 @@ int mux(int serverSocket) {
     fds[0].events = POLLIN; //POLLIN data to read without blocking
 
     while (endServer == FALSE) {
-        printf("numberOfFileDescriptors: %d\n", numberOfFileDescriptors);
+        //printf("numberOfFileDescriptors: %d\n", numberOfFileDescriptors);
         //poll blocks and wait for clients
         if (poll(fds, numberOfFileDescriptors, -1) < 0) {
             loggerServer(LOG_ERR, "Poll function failed", "", NULL);

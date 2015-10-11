@@ -37,11 +37,19 @@ int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
     parseConfigurationFile(&sc, ".lab3-config"); //utilityManageFiles.c
-    sc.customLog = "log";
-    sc.handlingMethod = "mux";
 
     parseCommandLineOptions(&sc, argc, argv);
-    
+
+    //Needs to be done before the call to chroot.
+    if (sc.customLog == NULL) {
+        if (sc.isDaemon == 1) {
+            openlog("RoSa/1.0", LOG_CONS | LOG_PID, LOG_DAEMON);
+        } else {
+            openlog("RoSa/1.0", LOG_CONS | LOG_PID, LOG_LOCAL1);
+        }
+    }
+    loggerServer(LOG_NOTICE, "Log oppened.", NULL, NULL);
+
     // Set process jail, to the parent dir of www
     char rootDir[PATH_MAX];
     char* test;
@@ -54,16 +62,6 @@ int main(int argc, char *argv[]) {
     }
     //set status code directory
     asprintf(&sc.statusCodesDir, "/statusCodesPages");
-
-    //(however, you may choose to output to separate files, e.g. <filename>.log and <filename>.err)
-    if (sc.customLog == NULL) {
-        if (sc.isDaemon == 1) {
-            openlog("RoSa/1.0", LOG_CONS | LOG_PID, LOG_DAEMON);
-        } else
-            openlog("RoSa/1.0", LOG_CONS | LOG_PID, LOG_LOCAL1);
-    }
-
-
 
     char *number;
     asprintf(&number, "%d", getuid());
@@ -183,11 +181,8 @@ void *connection_handler(void *mySocket) {
     //Receive a message from client TCP, recvfrom is for udp
     while ((readSize = recv(clientSocketP->socket, client.httpReq.message, 10000, 0)) > 0) {
         parseMessageSendResponse(clientSocketP->socket, &client, readSize);
-
-        /*      if (client.httpRes.closeConnection == 1) {*/
         close(clientSocketP->socket);
         break;
-        /*      }*/
     }
 
     if (readSize == 0) {
