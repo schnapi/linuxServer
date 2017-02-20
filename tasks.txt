@@ -34,4 +34,4 @@ almost done or done tasks:
 2.7 URL Validation // we use realpath function
 2.9 Configuration File // ServerConfigurations sc is global variable and structure in utilityHTTP.c file 
 2.10 Run as Daemon
-2.11 Logging // almost done, check again when the project is going to be done
+2.11 Logging
